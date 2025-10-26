@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 10000;
 const FOOTBALL_DATA_KEY = process.env.FOOTBALL_DATA_API_KEY;
 
 let cache = { timestamp: 0, data: [] };
-const CACHE_DURATION = 15*60*1000;
+const CACHE_DURATION = 15*60*1000; // 15 Minuten
 
 const LEAGUE_IDS = {
   "Premier League": 2021,
@@ -116,13 +116,26 @@ async function fetchGames(){
 
 app.get("/api/games", async (req,res)=>{
   const now = Date.now();
-  if(now - cache.timestamp < CACHE_DURATION && cache.data.length>0) return res.json({response:cache.data});
+  if(now - cache.timestamp < CACHE_DURATION && cache.data.length>0){
+    let filtered = cache.data;
+    if(req.query.date){
+      filtered = filtered.filter(g=> g.date.startsWith(req.query.date));
+    }
+    const top7Value = [...filtered].sort((a,b)=>Math.max(b.value.home,b.value.draw,b.value.away)-Math.max(a.value.home,a.value.draw,a.value.away)).slice(0,7);
+    const top5Over25 = [...filtered].sort((a,b)=>b.value.over25-a.value.over25).slice(0,5);
+    return res.json({response: filtered, top7Value, top5Over25});
+  }
+
   try{
     const games = await fetchGames();
-    const top7Value = [...games].sort((a,b)=>Math.max(b.value.home,b.value.draw,b.value.away)-Math.max(a.value.home,a.value.draw,a.value.away)).slice(0,7);
-    const top5Over25 = [...games].sort((a,b)=>b.value.over25-a.value.over25).slice(0,5);
     cache = {timestamp: now, data: games};
-    res.json({response: games, top7Value, top5Over25});
+    let filtered = games;
+    if(req.query.date){
+      filtered = games.filter(g=> g.date.startsWith(req.query.date));
+    }
+    const top7Value = [...filtered].sort((a,b)=>Math.max(b.value.home,b.value.draw,b.value.away)-Math.max(a.value.home,a.value.draw,a.value.away)).slice(0,7);
+    const top5Over25 = [...filtered].sort((a,b)=>b.value.over25-a.value.over25).slice(0,5);
+    res.json({response: filtered, top7Value, top5Over25});
   }catch(err){
     console.error(err);
     res.status(500).json({response:[], top7Value:[], top5Over25:[], error: err.message});
