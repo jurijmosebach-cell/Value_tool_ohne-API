@@ -1,33 +1,20 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>xG Value Tool</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="header">
   <h1>xG Value Tool</h1>
-  <button id="refresh" class="btn">Refresh</button>
-</header>
 
-<section class="legend">
-  <div><span class="legend-bar home"></span> Home Value</div>
-  <div><span class="legend-bar draw"></span> Draw Value</div>
-  <div><span class="legend-bar away"></span> Away Value</div>
-  <div><span class="legend-bar over25"></span> Over 2.5 Value</div>
-  <div><span class="legend-bar under25"></span> Under 2.5 Value</div>
-</section>
+  <h2>Top Spiele (Value & Over 2.5)</h2>
+  <div id="top-games-container" class="games-table"></div>
 
-<main id="main">
-  <section id="toplists"></section>
-  <section id="games-wrap">
-    <div id="games" class="games"></div>
-  </section>
-</main>
+  <h2>Alle Spiele</h2>
+  <div id="games-container" class="games-table"></div>
 
-<footer class="footer muted">Daten via football-data.org • Cache: 15 Minuten</footer>
-<script type="module" src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
