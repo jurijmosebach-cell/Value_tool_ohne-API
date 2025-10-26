@@ -14,7 +14,6 @@ const FOOTBALL_DATA_KEY = process.env.FOOTBALL_DATA_API_KEY;
 let cache = { timestamp: 0, data: [] };
 const CACHE_DURATION = 15*60*1000;
 
-// Liga-IDs (Football-Data)
 const LEAGUE_IDS = {
   "Premier League": 2021,
   "Bundesliga": 2002,
@@ -88,6 +87,12 @@ async function fetchGames(){
         const awayProbGoal = 1 - Math.exp(-awayXG);
         const btts = +(homeProbGoal*awayProbGoal).toFixed(2);
 
+        // Trend-Berechnung
+        let trend="neutral";
+        if(value.home>0.1 && homeXG>awayXG) trend="home";
+        else if(value.away>0.1 && awayXG>homeXG) trend="away";
+        else if(Math.abs(homeXG-awayXG)<0.2) trend="draw";
+
         games.push({
           id: m.id,
           date: m.utcDate,
@@ -97,16 +102,15 @@ async function fetchGames(){
           homeLogo: `https://flagcdn.com/48x36/${getFlag(m.homeTeam.name)}.png`,
           awayLogo: `https://flagcdn.com/48x36/${getFlag(m.awayTeam.name)}.png`,
           odds, value, totalXG:+totalXG.toFixed(2),
-          homeXG:+homeXG.toFixed(2), awayXG:+awayXG.toFixed(2),
-          prob, btts, trend:"neutral"
+          homeXG:+homeXG.toFixed(2),
+          awayXG:+awayXG.toFixed(2),
+          prob, btts, trend
         });
       });
     } catch(e){ console.error(`Fehler Liga ${leagueName}:`, e); }
   }
 
-  // Spiele nach Datum sortieren
   games.sort((a,b)=>new Date(a.date)-new Date(b.date));
-
   return games;
 }
 
