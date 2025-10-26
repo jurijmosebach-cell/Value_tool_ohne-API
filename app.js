@@ -49,23 +49,27 @@ async function loadGames(){
 
     let games = data.response.slice();
 
+    // apply filters
     if(leagueSelect.value) games = games.filter(g => g.league === leagueSelect.value);
     if(teamInput.value){
       const q = teamInput.value.toLowerCase();
       games = games.filter(g => g.home.toLowerCase().includes(q) || g.away.toLowerCase().includes(q));
     }
 
+    // value threshold filter (from slider)
     const minValue = parseFloat(valueRange.value) || 0;
     games = games.filter(g => {
       const best = Math.max(g.value.home || -999, g.value.draw || -999, g.value.away || -999);
       return best >= minValue;
     });
 
+    // sort by best value
     games.sort((a,b) => Math.max(b.value.home,b.value.draw,b.value.away) - Math.max(a.value.home,a.value.draw,a.value.away));
 
     const topGames = games.slice(0,3);
     const otherGames = games.slice(3);
 
+    // top3
     top3Div.innerHTML = "";
     topGames.forEach(g => {
       g.btts = g.btts ?? 0;
@@ -88,6 +92,7 @@ async function loadGames(){
       top3Div.appendChild(div);
     });
 
+    // top7 value
     top7ValueDiv.innerHTML = "";
     const top7 = games.slice(0,7);
     top7.forEach(g => {
@@ -100,6 +105,7 @@ async function loadGames(){
       top7ValueDiv.appendChild(div);
     });
 
+    // top5 over
     top5OverDiv.innerHTML = "";
     const top5Over = games.slice().sort((a,b)=>b.value.over25 - a.value.over25).slice(0,5);
     top5Over.forEach(g => {
@@ -110,6 +116,7 @@ async function loadGames(){
       top5OverDiv.appendChild(div);
     });
 
+    // other games
     gamesDiv.innerHTML = "";
     otherGames.forEach(g => {
       g.btts = g.btts ?? 0;
@@ -138,5 +145,7 @@ async function loadGames(){
 }
 
 loadBtn.addEventListener("click", loadGames);
-valueRange.addEventListener("input", updateValueLabel);
+valueRange.addEventListener("input", () => {
+  updateValueLabel();
+});
 window.addEventListener("load", loadGames);
