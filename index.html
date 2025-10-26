@@ -7,13 +7,25 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>xG Value Tool</h1>
+  <div class="header">
+    <h1>xG Value Tool</h1>
+    <button id="refresh-btn">Refresh</button>
+  </div>
 
-  <h2>Top Spiele (Value & Over 2.5)</h2>
-  <div id="top-games-container" class="games-table"></div>
+  <section>
+    <h2>Top 7 Value Wetten</h2>
+    <div id="top-value" class="top-list"></div>
+  </section>
 
-  <h2>Alle Spiele</h2>
-  <div id="games-container" class="games-table"></div>
+  <section>
+    <h2>Top 5 Over 2.5</h2>
+    <div id="top-over" class="top-list"></div>
+  </section>
+
+  <section>
+    <h2>Alle Spiele</h2>
+    <div id="games-container" class="games-table"></div>
+  </section>
 
   <script src="app.js"></script>
 </body>
