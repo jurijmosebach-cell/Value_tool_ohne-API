@@ -4,46 +4,49 @@ const statusDiv = document.getElementById("status");
 const dateInput = document.getElementById("match-date");
 
 // set today
-const today = new Date().toISOString().slice(0,10);
+const today = new Date().toISOString().slice(0, 10);
 dateInput.value = today;
 
 refreshBtn.addEventListener("click", loadMatches);
 loadMatches();
 
-async function loadMatches(){
+async function loadMatches() {
   const date = dateInput.value;
-  if(!date){ statusDiv.textContent = "Bitte Datum wählen!"; return; }
+  if (!date) { 
+    statusDiv.textContent = "Bitte Datum wählen!"; 
+    return; 
+  }
   statusDiv.textContent = "Lade aktuelle Spiele...";
   matchList.innerHTML = "";
 
-  try{
+  try {
     const res = await fetch(`/api/games?date=${date}`);
     const json = await res.json();
     const games = json.response || [];
-    if(games.length===0){
+    if (games.length === 0) {
       statusDiv.textContent = "Keine Spiele für dieses Datum.";
       return;
     }
 
     // Top 7 Value Tipps
-    const topValue = [...games].sort((a,b)=>{
+    const topValue = [...games].sort((a, b) => {
       const maxA = Math.max(a.value.home, a.value.draw, a.value.away);
       const maxB = Math.max(b.value.home, b.value.draw, b.value.away);
       return maxB - maxA;
-    }).slice(0,7);
+    }).slice(0, 7);
 
     let valueHTML = "<h2 class='text-lg font-bold mb-2'>Top 7 Value Tipps</h2><ul class='list-disc pl-5 mb-4'>";
-    topValue.forEach(g=>{
+    topValue.forEach(g => {
       const bestVal = Math.max(g.value.home, g.value.draw, g.value.away);
       const market = bestVal === g.value.home ? "1" : bestVal === g.value.draw ? "X" : "2";
-      valueHTML += `<li>${g.home} vs ${g.away} → ${market} ${(bestVal*100).toFixed(1)}% Value</li>`;
+      valueHTML += `<li>${g.home} vs ${g.away} → ${market} ${(bestVal * 100).toFixed(1)}% Value</li>`;
     });
     valueHTML += "</ul>";
 
     // Top 5 xG Favoriten
-    const topXG = [...games].sort((a,b)=> (b.homeXG + b.awayXG) - (a.homeXG + a.awayXG)).slice(0,5);
+    const topXG = [...games].sort((a, b) => (b.homeXG + b.awayXG) - (a.homeXG + a.awayXG)).slice(0, 5);
     let xgHTML = "<h2 class='text-lg font-bold mb-2'>Top 5 Favoriten (xG)</h2><ul class='list-disc pl-5 mb-4'>";
-    topXG.forEach(g=>{
+    topXG.forEach(g => {
       xgHTML += `<li>${g.home} vs ${g.away} → ${(g.homeXG + g.awayXG).toFixed(2)} xG</li>`;
     });
     xgHTML += "</ul>";
@@ -51,7 +54,7 @@ async function loadMatches(){
     statusDiv.innerHTML = `${games.length} Spiele geladen.` + valueHTML + xgHTML;
 
     // list cards
-    games.forEach(g=>{
+    games.forEach(g => {
       const card = document.createElement("div");
       card.className = "bg-gray-800 rounded-xl p-4 shadow border border-gray-700";
       const homeVal = g.value.home * 100;
@@ -61,11 +64,11 @@ async function loadMatches(){
       const underVal = g.value.under25 * 100;
 
       const maxVal = Math.max(homeVal, drawVal, awayVal);
-      const homeColor = homeVal===maxVal ? 'bg-green-500' : 'bg-red-500';
-      const drawColor = drawVal===maxVal ? 'bg-yellow-400' : 'bg-red-500';
-      const awayColor = awayVal===maxVal ? 'bg-green-500' : 'bg-red-500';
-      const overColor = overVal>=underVal ? 'bg-green-500' : 'bg-red-500';
-      const underColor = underVal>overVal ? 'bg-green-500' : 'bg-red-500';
+      const homeColor = homeVal === maxVal ? 'bg-green-500' : 'bg-red-500';
+      const drawColor = drawVal === maxVal ? 'bg-yellow-400' : 'bg-red-500';
+      const awayColor = awayVal === maxVal ? 'bg-green-500' : 'bg-red-500';
+      const overColor = overVal >= underVal ? 'bg-green-500' : 'bg-red-500';
+      const underColor = underVal > overVal ? 'bg-green-500' : 'bg-red-500';
 
       card.innerHTML = `
         <div class="flex items-center justify-between mb-2">
@@ -92,7 +95,7 @@ async function loadMatches(){
         <div class="relative h-6 rounded-full overflow-hidden mb-2 bg-gray-700">
           <div class="${homeColor} absolute h-full left-0 top-0" style="width: ${homeVal}%"></div>
           <div class="${drawColor} absolute h-full left:${homeVal}% top-0" style="width: ${drawVal}%"></div>
-          <div class="${awayColor} absolute h-full left:${homeVal+drawVal}% top-0" style="width: ${awayVal}%"></div>
+          <div class="${awayColor} absolute h-full left:${homeVal + drawVal}% top-0" style="width: ${awayVal}%"></div>
           <span class="absolute inset-0 flex items-center justify-center font-bold text-white text-sm">1:${homeVal.toFixed(1)}% | X:${drawVal.toFixed(1)}% | 2:${awayVal.toFixed(1)}%</span>
         </div>
 
@@ -105,7 +108,7 @@ async function loadMatches(){
       matchList.appendChild(card);
     });
 
-  } catch(err){
+  } catch (err) {
     statusDiv.textContent = "Fehler: " + err.message;
     console.error(err);
   }
