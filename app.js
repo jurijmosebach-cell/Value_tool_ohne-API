@@ -22,6 +22,10 @@ async function loadMatches() {
   try {
     const res = await fetch(`/api/games?date=${date}`);
     const json = await res.json();
+    
+    // Logge die API-Antwort hier
+    console.log("Antwort von Server:", json);
+
     const games = json.response || [];
     if (games.length === 0) {
       statusDiv.textContent = "Keine Spiele für dieses Datum.";
