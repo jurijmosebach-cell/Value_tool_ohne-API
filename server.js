@@ -5,11 +5,14 @@ import { fetchFlashscoreGames, LEAGUE_URLS } from "./scraper.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const app = express();
 app.use(express.static(__dirname));
 
 const PORT = process.env.PORT || 10000;
+
+// Cache Setup
+let cache = { timestamp: 0, data: [] };
+const CACHE_DURATION = 15 * 60 * 1000; // 15 Minuten
 
 function getFlag(team) {
   const flags = {
@@ -17,18 +20,30 @@ function getFlag(team) {
     "Bayern":"de","Dortmund":"de","Leipzig":"de","Gladbach":"de","Frankfurt":"de","Leverkusen":"de",
     "Real":"es","Barcelona":"es","Atletico":"es","Sevilla":"es","Valencia":"es","Villarreal":"es",
     "Juventus":"it","Inter":"it","Milan":"it","Napoli":"it","Roma":"it","Lazio":"it",
-    "PSG":"fr","Marseille":"fr","Monaco":"fr","Lyon":"fr","Rennes":"fr","Nice":"fr"
+    "PSG":"fr","Marseille":"fr","Monaco":"fr","Lyon":"fr","Rennes":"fr","Nice":"fr"}
+  const countries = {
+    "England":"gb","Germany":"de","Spain":"es","Italy":"it","France":"fr","USA":"us","Turkey":"tr",
+    "Australia":"au","Belgium":"be","Brazil":"br","China":"cn","Denmark":"dk","Japan":"jp",
+    "Netherlands":"nl","Norway":"no","Sweden":"se"
   };
+
   for(const [name, flag] of Object.entries(flags)) if(team.includes(name)) return flag;
-  return "eu";
+  for(const [country, flag] of Object.entries(countries)) if(team.includes(country)) return flag;
+
+  return "eu"; // Default
 }
 
+// API Route
 app.get("/api/games", async (req,res)=>{
+  const now = Date.now();
+  if(now - cache.timestamp < CACHE_DURATION && cache.data.length > 0){
+    return res.json({ response: cache.data });
+  }
+
   try {
     const games = [];
     for(const [leagueName, url] of Object.entries(LEAGUE_URLS)){
       const matches = await fetchFlashscoreGames(url);
-
       matches.forEach(g=>{
         const homeXG = +(1 + Math.random()*1).toFixed(2);
         const awayXG = +(1 + Math.random()*1).toFixed(2);
@@ -72,7 +87,9 @@ app.get("/api/games", async (req,res)=>{
       });
     }
 
+    cache = { timestamp: now, data: games };
     res.json({ response: games });
+
   } catch(err) {
     console.error("API Fehler:", err);
     res.status(500).json({ response: [], error: err.message });
