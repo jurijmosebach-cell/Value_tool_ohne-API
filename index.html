@@ -3,35 +3,53 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>xG Value Tool</title>
+<title>xG Value Dashboard - All Highlights</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
-    <h1>xG Value Tool</h1>
+<div class="container">
+  <h1>xG Value Dashboard</h1>
 
-    <div class="controls">
-      <label for="date">Datum auswählen:</label>
-      <input type="date" id="date">
-      <button id="loadBtn">Spiele laden</button>
-    </div>
+  <div class="controls">
+    <label for="date">Datum:</label>
+    <input type="date" id="date">
 
-    <section>
-      <h2>Top 7 Value Wetten</h2>
-      <div id="topValue" class="list"></div>
-    </section>
+    <label for="league">Liga:</label>
+    <select id="league">
+      <option value="">Alle Ligen</option>
+      <option value="Premier League">Premier League</option>
+      <option value="Bundesliga">Bundesliga</option>
+      <option value="La Liga">La Liga</option>
+      <option value="Serie A">Serie A</option>
+      <option value="Ligue 1">Ligue 1</option>
+    </select>
 
-    <section>
-      <h2>Top 5 Over 2.5</h2>
-      <div id="topOver" class="list"></div>
-    </section>
+    <label for="team">Team:</label>
+    <input type="text" id="team" placeholder="Teamname">
 
-    <section>
-      <h2>Spiele</h2>
-      <div id="games" class="games"></div>
-    </section>
+    <button id="loadBtn">Spiele laden</button>
   </div>
 
+  <section>
+    <h2>Top 3 Spiele</h2>
+    <div id="top3" class="games"></div>
+  </section>
+
+  <section>
+    <h2>Top 7 Value Wetten</h2>
+    <div id="top7Value" class="games"></div>
+  </section>
+
+  <section>
+    <h2>Top 5 Over 2.5</h2>
+    <div id="top5Over25" class="games"></div>
+  </section>
+
+  <section>
+    <h2>Alle Spiele</h2>
+    <div id="games" class="games"></div>
+  </section>
+</div>
 <script src="app.js"></script>
 </body>
 </html>
