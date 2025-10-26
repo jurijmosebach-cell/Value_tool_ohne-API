@@ -36,6 +36,19 @@ function getFlag(team){
   return "eu";
 }
 
+// Trend Berechnung: höchster Score aus Wahrscheinlichkeit + positiver Value
+function calcTrend(prob, value) {
+  const homeScore = prob.home + (value.home > 0 ? 0.1 : 0);
+  const drawScore = prob.draw + (value.draw > 0 ? 0.1 : 0);
+  const awayScore = prob.away + (value.away > 0 ? 0.1 : 0);
+
+  const maxScore = Math.max(homeScore, drawScore, awayScore);
+
+  if(maxScore === homeScore) return "Home";
+  if(maxScore === awayScore) return "Away";
+  return "Draw";
+}
+
 async function fetchMatchesForLeague(compCode,dateFrom,dateTo){
   if(!API_KEY) return [];
   const url = `https://api.football-data.org/v4/matches?competitions=${compCode}&dateFrom=${dateFrom}&dateTo=${dateTo}`;
@@ -97,7 +110,8 @@ async function refreshCache(){
           id: m.id || `${leagueName}-${home}-${away}-${m.utcDate}`,
           home, away, league: leagueName, utcDate: m.utcDate,
           homeLogo, awayLogo,
-          odds, value, totalXG, homeXG, awayXG, prob
+          odds, value, totalXG, homeXG, awayXG, prob,
+          trend: calcTrend(prob, value) // <-- Tendenz Spalte
         });
       });
     }catch(err){ console.error(`Fehler ${leagueName}:`, err.message); }
