@@ -1,3 +1,16 @@
+/**
+ * server.js
+ * Hybrid backend:
+ * - fetch matches from football-data.org (requires FOOTBALL_DATA_API_KEY)
+ * - try to enrich each match with real xG from Understat (no key required)
+ * - if Understat lookup fails, fall back to generated xG values
+ * - produces prob/value/btts/trend and top lists
+ *
+ * Notes:
+ * - Optional env: XG_API_URL (if you already run a separate xG provider) will be used first
+ * - Understat scraping: fetch team pages, parse embedded matches JSON and find the match by opponent+date
+ */
+
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -10,11 +23,12 @@ app.use(express.static(__dirname));
 
 const PORT = process.env.PORT || 10000;
 const FOOTBALL_DATA_KEY = process.env.FOOTBALL_DATA_API_KEY || "";
+const XG_API_URL = process.env.XG_API_URL || ""; // optional external xG API
+const XG_API_KEY = process.env.XG_API_KEY || ""; // optional header for XG_API_URL
 
 let cache = { timestamp: 0, data: [] };
-const CACHE_DURATION = 15 * 60 * 1000; // 15 Minuten
+const CACHE_DURATION = 15 * 60 * 1000; // 15 min cache
 
-// League IDs for football-data.org
 const LEAGUE_IDS = {
   "Premier League": 2021,
   "Bundesliga": 2002,
@@ -23,7 +37,14 @@ const LEAGUE_IDS = {
   "Ligue 1": 2015
 };
 
-/* ---------- Utilities ---------- */
+/* ----------------- util/helpers ----------------- */
+
+function slugify(name) {
+  if (!name) return "";
+  // basic slugify: remove diacritics (approx), lower, replace non-alnum by hyphen
+  return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+             .replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase();
+}
 
 function getFlag(team){
   const flags = {
@@ -49,16 +70,9 @@ function factorial(n){
   for(let i=2;i<=n;i++) f *= i;
   return f;
 }
-
 function poisson(k, lambda){
-  // return P(X = k)
   return Math.pow(lambda, k) * Math.exp(-lambda) / factorial(k);
 }
-
-/**
- * Compute probabilities of home win / draw / away using Poisson distributions
- * by summing joint probabilities for goals up to maxGoals.
- */
 function computeMatchOutcomeProbs(homeLambda, awayLambda, maxGoals = 7){
   let homeProb = 0, drawProb = 0, awayProb = 0;
   for(let i=0;i<=maxGoals;i++){
@@ -71,46 +85,125 @@ function computeMatchOutcomeProbs(homeLambda, awayLambda, maxGoals = 7){
       else awayProb += p;
     }
   }
-  // residual mass for tails (goals > maxGoals) approximate is tiny for reasonable lambdas
   const total = homeProb + drawProb + awayProb;
-  // normalize to 1
   return {
     home: +(homeProb/total).toFixed(4),
     draw: +(drawProb/total).toFixed(4),
     away: +(awayProb/total).toFixed(4)
   };
 }
-
-/**
- * Compute probability of over 2.5 goals (sum goals >=3)
- */
-function computeOver25Prob(homeLambda, awayLambda, maxGoals = 7){
-  const joint = (max) => {
-    let p = 0;
-    for(let i=0;i<=max;i++){
-      const ph = poisson(i, homeLambda);
-      for(let j=0;j<=max;j++){
-        const pa = poisson(j, awayLambda);
-        p += ph * pa;
-      }
-    }
-    return p;
-  };
-  // approximate P(total goals <= 2) by summing i+j <=2
+function computeOver25Prob(homeLambda, awayLambda){
+  // P(total goals >= 3) = 1 - P(total <= 2)
   let pLe2 = 0;
   for(let i=0;i<=2;i++){
-    const ph = poisson(i, homeLambda);
     for(let j=0;j<=2;j++){
-      if(i + j <= 2){
-        pLe2 += ph * poisson(j, awayLambda);
-      }
+      pLe2 += poisson(i, homeLambda) * poisson(j, awayLambda);
     }
   }
-  const over25 = 1 - pLe2;
-  return +over25.toFixed(4);
+  return +(1 - pLe2).toFixed(4);
 }
 
-/* ---------- Fetch matches ---------- */
+/* ----------------- Understat scraping -----------------
+Strategy:
+- For a given home & away & date (YYYY-MM-DD) we attempt:
+  1) Fetch Understat team page for home (https://understat.com/team/{homeSlug})
+  2) Parse embedded JS: var matchesData = JSON.parse('...');  (matches data is an escaped JSON string)
+  3) Find an entry where opponent matches away team and date matches
+  4) If not found, try same for away team page
+- If found, return { homeXG, awayXG }
+- If fails, throw error so caller can fallback to random xG
+Note: Understat encodes JSON as escaped string inside JS. We unescape carefully.
+-------------------------------------------------- */
+
+async function fetchUnderstatForTeam(teamName) {
+  const teamSlug = slugify(teamName);
+  if(!teamSlug) throw new Error("empty slug");
+  const url = `https://understat.com/team/${teamSlug}`;
+  const res = await fetch(url, { headers: { "User-Agent": "xg-value-tool/1.0" } });
+  if(!res.ok) throw new Error(`Understat team page ${res.status}`);
+  const text = await res.text();
+
+  // Find the matches JSON: typically: var matchesData = JSON.parse('...'); or "matchesData = JSON.parse('...')"
+  const re = /matchesData\s*=\s*JSON\.parse\('([\s\S]*?)'\)/m;
+  const m = text.match(re);
+  if(!m) throw new Error("matchesData not found on team page");
+  let jsonEscaped = m[1];
+
+  // Unescape sequence: the JSON inside is escaped (\' for single quote, \\ for backslash)
+  // Replace sequences so we can parse
+  try {
+    // Replace escaped single quotes and escaped newlines
+    jsonEscaped = jsonEscaped.replace(/\\'/g, "'").replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+    const parsed = JSON.parse(jsonEscaped);
+    return parsed; // array of matches objects (Understat structure)
+  } catch(err){
+    throw new Error("Failed to parse matchesData JSON: " + err.message);
+  }
+}
+
+function extractXGFromUnderstatMatchObj(obj, homeName, awayName) {
+  // Understat match object has fields. Typical fields include: h, a (team titles) or h_team/a_team and h_xG/a_xG
+  // We'll attempt multiple property names to be robust.
+  const homeTitle = (obj.h && obj.h.title) || obj.h_team || obj.home || obj.home_title;
+  const awayTitle = (obj.a && obj.a.title) || obj.a_team || obj.away || obj.away_title;
+
+  // xG fields
+  const homeXG = obj.h_xG ?? obj.hxG ?? obj.h_xg ?? obj.home_xg ?? obj.h_xG_avg ?? null;
+  const awayXG = obj.a_xG ?? obj.axG ?? obj.a_xg ?? obj.away_xg ?? obj.a_xG_avg ?? null;
+
+  // Understat sometimes stores strings; coerce:
+  const hx = homeXG != null ? parseFloat(homeXG) : null;
+  const ax = awayXG != null ? parseFloat(awayXG) : null;
+
+  // verify names match plausibly
+  const n1 = (''+homeTitle).toLowerCase();
+  const n2 = (''+awayTitle).toLowerCase();
+
+  const matchesHome = n1.includes(homeName.toLowerCase()) || homeName.toLowerCase().includes(n1);
+  const matchesAway = n2.includes(awayName.toLowerCase()) || awayName.toLowerCase().includes(n2);
+
+  if((hx != null && !Number.isNaN(hx)) && (ax != null && !Number.isNaN(ax)) && matchesHome && matchesAway) {
+    return { homeXG: +hx.toFixed(2), awayXG: +ax.toFixed(2) };
+  }
+  // If names don't match strictly, still allow if xG fields exist
+  if((hx != null && !Number.isNaN(hx)) && (ax != null && !Number.isNaN(ax))) {
+    return { homeXG: +hx.toFixed(2), awayXG: +ax.toFixed(2) };
+  }
+  return null;
+}
+
+async function tryUnderstatLookup(home, away, dateYYYYMMDD) {
+  // Try home team page first
+  try {
+    const matches = await fetchUnderstatForTeam(home);
+    for(const obj of matches){
+      try {
+        // Understat match object often has 'formatted_date' or 'date' fields: check for date match
+        const objDate = obj.date ? obj.date.split('T')[0] : (obj.formatted_date ? obj.formatted_date : null);
+        if(objDate && dateYYYYMMDD && !objDate.startsWith(dateYYYYMMDD)) continue;
+        const xg = extractXGFromUnderstatMatchObj(obj, home, away);
+        if(xg) return xg;
+      } catch(e) { continue; }
+    }
+  } catch(e){ /* ignore */ }
+
+  // Try away team page
+  try {
+    const matches2 = await fetchUnderstatForTeam(away);
+    for(const obj of matches2){
+      try {
+        const objDate = obj.date ? obj.date.split('T')[0] : (obj.formatted_date ? obj.formatted_date : null);
+        if(objDate && dateYYYYMMDD && !objDate.startsWith(dateYYYYMMDD)) continue;
+        const xg = extractXGFromUnderstatMatchObj(obj, home, away);
+        if(xg) return xg;
+      } catch(e) { continue; }
+    }
+  } catch(e){ /* ignore */ }
+
+  throw new Error("Understat lookup failed");
+}
+
+/* ----------------- fetch matches from football-data.org & enrich ----------------- */
 
 async function fetchGamesFromAPI(){
   if(!FOOTBALL_DATA_KEY) return [];
@@ -122,19 +215,58 @@ async function fetchGamesFromAPI(){
       const url = `https://api.football-data.org/v4/competitions/${id}/matches?status=SCHEDULED`;
       const res = await fetch(url, { headers });
       if(!res.ok){
-        console.error(`football-data response ${res.status} for ${leagueName}`);
+        console.warn(`football-data response ${res.status} for ${leagueName}`);
         continue;
       }
       const data = await res.json();
       if(!data.matches || !Array.isArray(data.matches)) continue;
 
-      data.matches.forEach(m => {
-        // fallback xG (if you later want to use real xG, replace these with API values)
-        const homeXG = +(0.8 + Math.random()*1.6).toFixed(2); // realistic-ish
-        const awayXG = +(0.6 + Math.random()*1.6).toFixed(2);
+      for(const m of data.matches){
+        const matchDate = m.utcDate ? m.utcDate.split("T")[0] : undefined;
+        let homeXG = null, awayXG = null;
+
+        // 1) If external XG API configured, call it first
+        if(XG_API_URL){
+          try {
+            const u = new URL(XG_API_URL);
+            u.searchParams.set("home", m.homeTeam?.name || "");
+            u.searchParams.set("away", m.awayTeam?.name || "");
+            if(matchDate) u.searchParams.set("date", matchDate);
+            const h = {};
+            if(XG_API_KEY) h["Authorization"] = `Bearer ${XG_API_KEY}`;
+            const xr = await fetch(u.toString(), { headers: h, timeout: 8000 });
+            if(xr.ok){
+              const j = await xr.json();
+              if(typeof j.homeXG === "number" && typeof j.awayXG === "number"){
+                homeXG = +j.homeXG;
+                awayXG = +j.awayXG;
+              }
+            }
+          } catch(e){
+            console.warn("External XG API failed:", e.message);
+          }
+        }
+
+        // 2) Try Understat
+        if(homeXG == null || awayXG == null){
+          try {
+            const xg = await tryUnderstatLookup(m.homeTeam?.name || "", m.awayTeam?.name || "", matchDate);
+            homeXG = xg.homeXG;
+            awayXG = xg.awayXG;
+          } catch(e){
+            // Understat could fail for various reasons; we'll fallback below
+            // console.warn("Understat lookup failed:", e.message);
+          }
+        }
+
+        // 3) Fallback generated xG if we still don't have real xG
+        if(homeXG == null || awayXG == null){
+          homeXG = +(0.8 + Math.random()*1.6).toFixed(2);
+          awayXG = +(0.6 + Math.random()*1.6).toFixed(2);
+        }
+
         const totalXG = +(homeXG + awayXG).toFixed(2);
 
-        // random-ish odds (replace with real odds source if available)
         const odds = {
           home: +(1.6 + Math.random()*1.6).toFixed(2),
           draw: +(2.0 + Math.random()*1.5).toFixed(2),
@@ -143,15 +275,12 @@ async function fetchGamesFromAPI(){
           under25: +(1.8 + Math.random()*0.7).toFixed(2)
         };
 
-        // compute Poisson-based match outcome probabilities
         const outcome = computeMatchOutcomeProbs(homeXG, awayXG, 7);
-        const over25Prob = computeOver25Prob(homeXG, awayXG, 7);
+        const over25Prob = computeOver25Prob(homeXG, awayXG);
 
-        // BTTS approx: 1 - P(home 0) - P(away 0) + P(both 0)?? Better: 1 - P(home 0 OR away 0)
-        // We'll compute prob at least one goal for each and multiply (approx independence)
         const pHomeAtLeast1 = 1 - poisson(0, homeXG);
         const pAwayAtLeast1 = 1 - poisson(0, awayXG);
-        const bttsProb = +( (pHomeAtLeast1 * pAwayAtLeast1) ).toFixed(4);
+        const bttsProb = +(pHomeAtLeast1 * pAwayAtLeast1).toFixed(4);
 
         const prob = {
           home: +outcome.home.toFixed(4),
@@ -176,6 +305,7 @@ async function fetchGamesFromAPI(){
         else if(mainValue > 0.12 && prob.away > prob.home && prob.away > prob.draw) trend = "away";
         else if(Math.abs(prob.home - prob.away) < 0.08 && prob.draw >= Math.max(prob.home, prob.away)) trend = "draw";
 
+        allGamesPush:
         allGames.push({
           id: m.id,
           date: m.utcDate,
@@ -189,61 +319,55 @@ async function fetchGamesFromAPI(){
           btts: bttsProb,
           trend
         });
-      });
-
-    } catch(err){
+      } // end for each match
+    } // end try
+    catch(err){
       console.error("Error fetching league", leagueName, err.message);
       continue;
     }
-  }
+  } // end for leagues
 
-  // sort by date ascending
   allGames.sort((a,b) => new Date(a.date) - new Date(b.date));
   return allGames;
 }
 
-/* ---------- API route ---------- */
+/* ----------------- API route ----------------- */
 
 app.get("/api/games", async (req, res) => {
   try {
     const now = Date.now();
     if(!cache.data.length || now - cache.timestamp > CACHE_DURATION){
-      // refresh cache
       const games = await fetchGamesFromAPI();
       cache = { timestamp: now, data: games };
     }
 
     let filtered = cache.data.slice();
-
-    // date filter: ?date=YYYY-MM-DD
     if(req.query.date){
       const q = req.query.date;
       filtered = filtered.filter(g => g.date && g.date.startsWith(q));
     }
 
-    // Top lists computed from filtered
     const top7Value = filtered
       .slice()
       .sort((a,b) => Math.max(b.value.home,b.value.draw,b.value.away) - Math.max(a.value.home,a.value.draw,a.value.away))
       .slice(0,7)
-      .map(g => ({ home: g.home, away: g.away, league: g.league, value: Number(Math.max(g.value.home,g.value.draw,g.value.away).toFixed(4)), trend: g.trend }));
+      .map(g => ({ home:g.home, away:g.away, league:g.league, value: Number(Math.max(g.value.home,g.value.draw,g.value.away).toFixed(4)), trend:g.trend }));
 
     const top5Over25 = filtered
       .slice()
       .sort((a,b) => b.value.over25 - a.value.over25)
       .slice(0,5)
-      .map(g => ({ home: g.home, away: g.away, league: g.league, value: Number(g.value.over25.toFixed(4)), trend: g.trend }));
+      .map(g => ({ home:g.home, away:g.away, league:g.league, value: Number(g.value.over25.toFixed(4)), trend:g.trend }));
 
     return res.json({ response: filtered, top7Value, top5Over25 });
-
   } catch(err){
     console.error("API error", err);
     return res.status(500).json({ response: [], top7Value: [], top5Over25: [], error: err.message });
   }
 });
 
-/* serve frontend */
-app.get("*", (req,res) => {
+/* ----------------- serve frontend ----------------- */
+app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
