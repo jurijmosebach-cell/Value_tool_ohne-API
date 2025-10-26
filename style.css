@@ -1,87 +1,63 @@
-/* Body & Grundlayout */
-body {
-  margin: 0;
-  font-family: sans-serif;
-  background: #f5f5f5;
-  color: #222;
+body{
+  font-family: Arial, sans-serif;
+  background:#f8f8f8;
+  color:#333;
+  margin:0;
+  padding:0;
 }
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
-  background: #ffffff;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+.container{
+  max-width:900px;
+  margin:auto;
+  padding:20px;
 }
-
-h1, h2 {
-  margin: 0;
+h1,h2{
+  text-align:center;
 }
-
-.top-list {
-  margin: 1rem;
-  padding: 0 1rem;
+.controls{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:10px;
+  margin-bottom:20px;
 }
-
-.games-table {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 0 1rem;
+.list div{
+  background:#fff;
+  padding:8px 12px;
+  margin:4px 0;
+  border-radius:5px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
 }
-
-.game-card {
-  background: #ffffff;
-  padding: 1rem;
-  border-radius: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+.games{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
 }
-
-.teams {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: bold;
+.game{
+  background:#fff;
+  padding:12px;
+  border-radius:5px;
 }
-
-.logo {
-  width: 24px;
-  height: 18px;
+.team{
+  display:flex;
+  align-items:center;
+  gap:8px;
 }
-
-.date {
-  font-size: 0.85rem;
-  color: #555;
+.bar-container{
+  background:#ddd;
+  height:12px;
+  border-radius:6px;
+  margin:4px 0;
+  position:relative;
 }
-
-.balken {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  margin-top: 0.5rem;
+.bar{
+  height:100%;
+  border-radius:6px;
 }
-
-.bar {
-  height: 16px;
-  border-radius: 4px;
-  text-align: right;
-  padding-right: 0.25rem;
-  font-size: 12px;
-  color: #fff;
-}
-
-.bar.home { background: #4caf50; }
-.bar.draw { background: #ffeb3b; color:#222; }
-.bar.away { background: #f44336; }
-.bar.over { background: #2196f3; }
-.bar.under { background: #9c27b0; }
-.bar.btts { background: #ff9800; }
-
-.trend {
-  font-size: 12px;
-  color: #666;
-}
+.home-bar{background:#4caf50;}
+.draw-bar{background:#ffc107;}
+.away-bar{background:#f44336;}
+.over25-bar{background:#2196f3;}
+.under25-bar{background:#9c27b0;}
+.btts-bar{background:#ff5722;}
