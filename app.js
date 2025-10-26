@@ -1,14 +1,14 @@
 async function loadGames(){
-  const res=await fetch("/api/games");
-  const data=await res.json();
-  const gamesContainer=document.getElementById("games-container");
-  gamesContainer.innerHTML="";
+  const res = await fetch("/api/games");
+  const data = await res.json();
+  const gamesContainer = document.getElementById("games-container");
+  gamesContainer.innerHTML = "";
 
   // Alle Spiele
   data.response.forEach(g=>{
-    const div=document.createElement("div");
-    div.className="game-card";
-    div.innerHTML=`
+    const div = document.createElement("div");
+    div.className = "game-card";
+    div.innerHTML = `
       <div class="teams">
         <img src="${g.homeLogo}" alt="" class="logo">
         <span>${g.home}</span>
@@ -16,6 +16,7 @@ async function loadGames(){
         <img src="${g.awayLogo}" alt="" class="logo">
         <span>${g.away}</span>
       </div>
+      <div class="date">Datum: ${new Date(g.date).toLocaleString()}</div>
       <div class="xg">xG: ${g.homeXG} — ${g.awayXG}</div>
       <div class="balken">
         <div class="bar home" style="width:${Math.max(g.value.home,0)*100}%">Home: ${g.value.home}</div>
@@ -31,23 +32,26 @@ async function loadGames(){
   });
 
   // Top 7 Value
-  const topValue=document.getElementById("top-value");
-  topValue.innerHTML="";
+  const topValue = document.getElementById("top-value");
+  topValue.innerHTML = "";
   data.top7Value.forEach(g=>{
-    const div=document.createElement("div");
-    div.textContent=`${g.home} vs ${g.away} → ${Math.max(g.value.home,g.value.draw,g.value.away)}`;
+    const div = document.createElement("div");
+    div.textContent = `${g.home} vs ${g.away} → ${Math.max(g.value.home,g.value.draw,g.value.away)}`;
     topValue.appendChild(div);
   });
 
   // Top 5 Over
-  const topOver=document.getElementById("top-over");
-  topOver.innerHTML="";
+  const topOver = document.getElementById("top-over");
+  topOver.innerHTML = "";
   data.top5Over25.forEach(g=>{
-    const div=document.createElement("div");
-    div.textContent=`${g.home} vs ${g.away} → Value ${g.value.over25}`;
+    const div = document.createElement("div");
+    div.textContent = `${g.home} vs ${g.away} → Value ${g.value.over25}`;
     topOver.appendChild(div);
   });
 }
 
-document.getElementById("refresh-btn").addEventListener("click",loadGames);
+// Direkt laden beim Start
 loadGames();
+
+// Optional: Automatisch alle 5 Minuten aktualisieren
+setInterval(loadGames, 5*60*1000);
