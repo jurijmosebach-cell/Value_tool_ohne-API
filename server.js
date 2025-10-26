@@ -14,19 +14,20 @@ const FOOTBALL_DATA_KEY = process.env.FOOTBALL_DATA_API_KEY || "";
 let cache = { timestamp: 0, data: [] };
 const CACHE_DURATION = 15 * 60 * 1000; // 15 Minuten
 
-// League IDs für football-data.org V4
+// League Codes von football-data.org
 const LEAGUE_IDS = {
-  "Champions League": 2001,
-  "Premier League": 2021,
-  "Bundesliga": 2002,
-  "Eredivisie": 2003,
-  "Campeonato Brasileiro Série A": 2013,
-  "Primera Division": 2014,
-  "Ligue 1": 2015,
-  "Championship": 2016,
-  "Primeira Liga": 2017,
-  "European Championship": 2018,
-  "Serie A": 2019
+  "FIFA-Weltmeisterschaft": "WC",
+  "UEFA Champions League": "CL",
+  "Bundesliga": "BL1",
+  "Eredivisie": "DED",
+  "Campeonato Brasileiro Série A": "BSA",
+  "Primera Division": "PD",
+  "Ligue 1": "FL1",
+  "Meisterschaft": "ELC",
+  "Primeira Liga": "PPL",
+  "Europameisterschaft": "EG",
+  "Serie A": "SA",
+  "Premier League": "PL"
 };
 
 /* ---------- Utilities ---------- */
@@ -73,7 +74,11 @@ function computeMatchOutcomeProbs(homeLambda, awayLambda, maxGoals = 7){
     }
   }
   const total = homeProb + drawProb + awayProb;
-  return { home: +(homeProb/total).toFixed(4), draw: +(drawProb/total).toFixed(4), away: +(awayProb/total).toFixed(4) };
+  return {
+    home: +(homeProb/total).toFixed(4),
+    draw: +(drawProb/total).toFixed(4),
+    away: +(awayProb/total).toFixed(4)
+  };
 }
 
 function computeOver25Prob(homeLambda, awayLambda, maxGoals = 7){
@@ -81,7 +86,9 @@ function computeOver25Prob(homeLambda, awayLambda, maxGoals = 7){
   for(let i=0;i<=2;i++){
     const ph = poisson(i, homeLambda);
     for(let j=0;j<=2;j++){
-      if(i + j <= 2) pLe2 += ph * poisson(j, awayLambda);
+      if(i + j <= 2){
+        pLe2 += ph * poisson(j, awayLambda);
+      }
     }
   }
   return +(1 - pLe2).toFixed(4);
@@ -96,9 +103,12 @@ async function fetchGamesFromAPI(){
 
   for(const [leagueName, id] of Object.entries(LEAGUE_IDS)){
     try {
-      const url = `https://api.football-data.org/v4/competitions/${id}/matches?status=SCHEDULED`;
+      const url = `https://api.football-data.org/v4/competitions/${id}/matches?status=SCHEDULED,TIMED`;
       const res = await fetch(url, { headers });
-      if(!res.ok){ console.error(`football-data response ${res.status} for ${leagueName}`); continue; }
+      if(!res.ok){
+        console.error(`football-data response ${res.status} for ${leagueName}`);
+        continue;
+      }
       const data = await res.json();
       if(!data.matches || !Array.isArray(data.matches)) continue;
 
@@ -116,7 +126,6 @@ async function fetchGamesFromAPI(){
 
         const outcome = computeMatchOutcomeProbs(homeXG, awayXG, 7);
         const over25Prob = computeOver25Prob(homeXG, awayXG, 7);
-
         const pHomeAtLeast1 = 1 - poisson(0, homeXG);
         const pAwayAtLeast1 = 1 - poisson(0, awayXG);
         const bttsProb = +( (pHomeAtLeast1 * pAwayAtLeast1) ).toFixed(4);
@@ -151,7 +160,7 @@ async function fetchGamesFromAPI(){
           away: m.awayTeam?.name || "Away",
           homeLogo: `https://flagcdn.com/48x36/${getFlag(m.homeTeam?.name||"")}.png`,
           awayLogo: `https://flagcdn.com/48x36/${getFlag(m.awayTeam?.name||"")}.png`,
-          homeXG, awayXG, totalXG: +(homeXG+awayXG).toFixed(2),
+          homeXG, awayXG,
           odds, prob, value,
           btts: bttsProb,
           trend
