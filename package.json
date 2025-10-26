@@ -1,5 +1,5 @@
 {
-  "name": "xg-value-tool-noapi",
+  "name": "xg-value-tool",
   "version": "1.0.0",
   "type": "module",
   "main": "server.js",
@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "express": "^4.19.2",
-    "cors": "^2.8.5"
+    "puppeteer": "^21.3.2"
   },
   "engines": {
     "node": ">=18"
