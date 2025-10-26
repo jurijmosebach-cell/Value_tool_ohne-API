@@ -16,11 +16,12 @@ const PORT = process.env.PORT || 10000;
 // Beispiel für eine öffentliche API, die keine Authentifizierung erfordert
 async function fetchMatchData(date) {
   try {
-    // Verwende eine öffentliche API oder einen Web-Scraping-Service
-    const url = `https://example.com/api/matches?date=${date}`; // Beispiel-URL für öffentliche API
+    const url = `https://example.com/api/matches?date=${date}`; // Deine tatsächliche URL
     const { data } = await axios.get(url);
+    
+    // Wenn die Antwort korrekt ist, logge sie
+    console.log("Antwort von API:", data);
 
-    // Extrahiere nur die relevanten Informationen
     const games = data.matches.map(match => ({
       home: match.homeTeam,
       away: match.awayTeam,
