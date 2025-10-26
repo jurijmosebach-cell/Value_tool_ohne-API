@@ -28,7 +28,10 @@ function getTrafficColor(value, trend){
   return '#ef4444';
 }
 
-function updateValueLabel(){ const v = parseFloat(valueRange.value); valueLabel.textContent = `>= ${v.toFixed(2)}`; }
+function updateValueLabel(){
+  const v = parseFloat(valueRange.value);
+  valueLabel.textContent = `>= ${v.toFixed(2)}`;
+}
 valueRange.addEventListener("input", updateValueLabel);
 updateValueLabel();
 
