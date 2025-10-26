@@ -22,8 +22,8 @@ async function loadMatches() {
   try {
     const res = await fetch(`/api/games?date=${date}`);
     const json = await res.json();
-    
-    // Logge die API-Antwort hier
+
+    // Logge die Antwort hier zur Fehlerdiagnose
     console.log("Antwort von Server:", json);
 
     const games = json.response || [];
@@ -34,15 +34,15 @@ async function loadMatches() {
 
     // Top 7 Value Tipps
     const topValue = [...games].sort((a, b) => {
-      const maxA = Math.max(a.value.home, a.value.draw, a.value.away);
-      const maxB = Math.max(b.value.home, b.value.draw, b.value.away);
+      const maxA = Math.max(a.odds.home, a.odds.draw, a.odds.away);
+      const maxB = Math.max(b.odds.home, b.odds.draw, b.odds.away);
       return maxB - maxA;
     }).slice(0, 7);
 
     let valueHTML = "<h2 class='text-lg font-bold mb-2'>Top 7 Value Tipps</h2><ul class='list-disc pl-5 mb-4'>";
     topValue.forEach(g => {
-      const bestVal = Math.max(g.value.home, g.value.draw, g.value.away);
-      const market = bestVal === g.value.home ? "1" : bestVal === g.value.draw ? "X" : "2";
+      const bestVal = Math.max(g.odds.home, g.odds.draw, g.odds.away);
+      const market = bestVal === g.odds.home ? "1" : bestVal === g.odds.draw ? "X" : "2";
       valueHTML += `<li>${g.home} vs ${g.away} → ${market} ${(bestVal * 100).toFixed(1)}% Value</li>`;
     });
     valueHTML += "</ul>";
@@ -61,11 +61,11 @@ async function loadMatches() {
     games.forEach(g => {
       const card = document.createElement("div");
       card.className = "bg-gray-800 rounded-xl p-4 shadow border border-gray-700";
-      const homeVal = g.value.home * 100;
-      const drawVal = g.value.draw * 100;
-      const awayVal = g.value.away * 100;
-      const overVal = g.value.over25 * 100;
-      const underVal = g.value.under25 * 100;
+      const homeVal = g.odds.home * 100;
+      const drawVal = g.odds.draw * 100;
+      const awayVal = g.odds.away * 100;
+      const overVal = g.odds.over25 * 100;
+      const underVal = g.odds.under25 * 100;
 
       const maxVal = Math.max(homeVal, drawVal, awayVal);
       const homeColor = homeVal === maxVal ? 'bg-green-500' : 'bg-red-500';
