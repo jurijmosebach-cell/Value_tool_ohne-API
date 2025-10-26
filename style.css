@@ -1,0 +1,5 @@
+/* Mobile-optimized styles */
+body { background: linear-gradient(180deg,#0f1724,#111827); font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+#app { padding-bottom: 60px; }
+img { display: block; }
+@media (max-width:420px){ .text-sm{font-size:12px;} .text-xs{font-size:11px;} }
