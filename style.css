@@ -6,9 +6,38 @@ body {
   padding: 0;
 }
 
-h1, h2 {
-  text-align: center;
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+}
+
+button#refresh-btn {
+  padding: 5px 12px;
+  background-color: #2196f3;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+}
+
+h1,h2 {
   margin: 10px 0;
+  text-align: center;
+}
+
+.top-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 5px 10px;
+}
+
+.top-item {
+  padding: 6px 10px;
+  background-color: #1e1e1e;
+  border-radius: 6px;
 }
 
 .games-table {
@@ -16,7 +45,7 @@ h1, h2 {
   flex-direction: column;
   gap: 10px;
   margin: 10px auto;
-  max-width: 900px;
+  max-width: 950px;
   padding: 0 10px;
 }
 
@@ -33,7 +62,6 @@ h1, h2 {
 .game-row img {
   width: 24px;
   height: 18px;
-  vertical-align: middle;
   margin-right: 5px;
 }
 
