@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>xG Value Dashboard</title>
+<title>xG Value Dashboard (Hybrid)</title>
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="container">
     <header>
       <h1>xG Value Dashboard</h1>
-      <p class="subtitle">Top 3, Top 7 Value, Top 5 Over — Datum / Liga / Team filtern</p>
+      <p class="subtitle">Hybrid: football-data.org + Understat xG. Datum/Liga/Team filtern</p>
     </header>
 
     <div class="controls">
@@ -31,6 +31,11 @@
 
       <label>Team
         <input type="text" id="team" placeholder="Teamname" />
+      </label>
+
+      <label>Min. Value
+        <input type="range" id="valueRange" min="-0.5" max="1.5" step="0.01" value="0" />
+        <div id="valueLabel">>= 0.00</div>
       </label>
 
       <button id="loadBtn">Spiele laden</button>
@@ -60,7 +65,7 @@
     </main>
 
     <footer>
-      <small>Benötigt FOOTBALL_DATA_API_KEY in Render / Environment</small>
+      <small>Benötigt FOOTBALL_DATA_API_KEY; optional: XG_API_URL / XG_API_KEY für eigenen xG-Provider.</small>
     </footer>
   </div>
 
