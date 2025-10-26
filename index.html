@@ -1,55 +1,69 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>xG Value Dashboard - All Highlights</title>
-<link rel="stylesheet" href="style.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>xG Value Dashboard</title>
+<link rel="stylesheet" href="style.css" />
 </head>
 <body>
-<div class="container">
-  <h1>xG Value Dashboard</h1>
+  <div class="container">
+    <header>
+      <h1>xG Value Dashboard</h1>
+      <p class="subtitle">Top 3, Top 7 Value, Top 5 Over — Datum / Liga / Team filtern</p>
+    </header>
 
-  <div class="controls">
-    <label for="date">Datum:</label>
-    <input type="date" id="date">
+    <div class="controls">
+      <label>Datum
+        <input type="date" id="date" />
+      </label>
 
-    <label for="league">Liga:</label>
-    <select id="league">
-      <option value="">Alle Ligen</option>
-      <option value="Premier League">Premier League</option>
-      <option value="Bundesliga">Bundesliga</option>
-      <option value="La Liga">La Liga</option>
-      <option value="Serie A">Serie A</option>
-      <option value="Ligue 1">Ligue 1</option>
-    </select>
+      <label>Liga
+        <select id="league">
+          <option value="">Alle</option>
+          <option>Premier League</option>
+          <option>Bundesliga</option>
+          <option>La Liga</option>
+          <option>Serie A</option>
+          <option>Ligue 1</option>
+        </select>
+      </label>
 
-    <label for="team">Team:</label>
-    <input type="text" id="team" placeholder="Teamname">
+      <label>Team
+        <input type="text" id="team" placeholder="Teamname" />
+      </label>
 
-    <button id="loadBtn">Spiele laden</button>
+      <button id="loadBtn">Spiele laden</button>
+    </div>
+
+    <main>
+      <section>
+        <h2>Top 3 Spiele</h2>
+        <div id="top3" class="games"></div>
+      </section>
+
+      <section class="two-column">
+        <div>
+          <h2>Top 7 Value</h2>
+          <div id="top7Value" class="list"></div>
+        </div>
+        <div>
+          <h2>Top 5 Over 2.5</h2>
+          <div id="top5Over25" class="list"></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Alle Spiele</h2>
+        <div id="games" class="games"></div>
+      </section>
+    </main>
+
+    <footer>
+      <small>Benötigt FOOTBALL_DATA_API_KEY in Render / Environment</small>
+    </footer>
   </div>
 
-  <section>
-    <h2>Top 3 Spiele</h2>
-    <div id="top3" class="games"></div>
-  </section>
-
-  <section>
-    <h2>Top 7 Value Wetten</h2>
-    <div id="top7Value" class="games"></div>
-  </section>
-
-  <section>
-    <h2>Top 5 Over 2.5</h2>
-    <div id="top5Over25" class="games"></div>
-  </section>
-
-  <section>
-    <h2>Alle Spiele</h2>
-    <div id="games" class="games"></div>
-  </section>
-</div>
-<script src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
