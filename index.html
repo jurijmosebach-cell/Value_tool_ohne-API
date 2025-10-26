@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,25 +7,31 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="header">
+  <div class="container">
     <h1>xG Value Tool</h1>
+
+    <div class="controls">
+      <label for="date">Datum auswählen:</label>
+      <input type="date" id="date">
+      <button id="loadBtn">Spiele laden</button>
+    </div>
+
+    <section>
+      <h2>Top 7 Value Wetten</h2>
+      <div id="topValue" class="list"></div>
+    </section>
+
+    <section>
+      <h2>Top 5 Over 2.5</h2>
+      <div id="topOver" class="list"></div>
+    </section>
+
+    <section>
+      <h2>Spiele</h2>
+      <div id="games" class="games"></div>
+    </section>
   </div>
 
-  <section>
-    <h2>Top 7 Value Wetten</h2>
-    <div id="top-value" class="top-list"></div>
-  </section>
-
-  <section>
-    <h2>Top 5 Over 2.5</h2>
-    <div id="top-over" class="top-list"></div>
-  </section>
-
-  <section>
-    <h2>Alle Spiele</h2>
-    <div id="games-container" class="games-table"></div>
-  </section>
-
-  <script src="app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
