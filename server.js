@@ -13,21 +13,26 @@ app.use(express.static(__dirname));
 
 const PORT = process.env.PORT || 10000;
 
-// Beispiel für eine öffentliche API, die keine Authentifizierung erfordert
+// Funktion, um die Spiele-Daten von einer öffentlichen API zu laden
 async function fetchMatchData(date) {
   try {
-    const url = `https://example.com/api/matches?date=${date}`; // Deine tatsächliche URL
-    const { data } = await axios.get(url);
+    // Hier kannst du die URL der öffentlichen API einfügen
+    const url = `https://api.football-data.org/v2/matches?date=${date}`; // Beispiel-URL für eine API
+    const { data } = await axios.get(url, { headers: { 'X-Auth-Token': 'DEIN_API_SCHLÜSSEL' } }); // API-Schlüssel falls benötigt
     
-    // Wenn die Antwort korrekt ist, logge sie
+    // Falls du die Antwort mit Fehlern prüfst
     console.log("Antwort von API:", data);
 
     const games = data.matches.map(match => ({
-      home: match.homeTeam,
-      away: match.awayTeam,
-      odds: match.odds,
-      homeXG: match.homeXG,
-      awayXG: match.awayXG
+      home: match.homeTeam.name,
+      away: match.awayTeam.name,
+      odds: {
+        home: 1.5, // Beispielwerte, falls du echte Odds verwenden willst, pass sie hier an
+        draw: 3.2,
+        away: 2.8
+      },
+      homeXG: Math.random() * 2, // Beispiel für xG-Werte
+      awayXG: Math.random() * 2
     }));
 
     return games;
