@@ -21,9 +21,9 @@ function createBar(label, value, color){
 }
 
 function getTrafficColor(value, trend){
-  if(value > 0.15 && (trend === 'home' || trend === 'away')) return '#16a34a'; // strong green
-  if(value > 0) return '#f59e0b'; // amber
-  return '#ef4444'; // red
+  if(value > 0.15 && (trend === 'home' || trend === 'away')) return '#16a34a'; // stark grün
+  if(value > 0) return '#f59e0b'; // gelb
+  return '#ef4444'; // rot
 }
 
 async function loadGames(){
@@ -40,15 +40,15 @@ async function loadGames(){
 
     let games = data.response.slice();
 
-    // filter league
+    // Filter Liga
     if(leagueSelect.value) games = games.filter(g => g.league === leagueSelect.value);
-    // filter team text
+    // Filter Team
     if(teamInput.value){
       const q = teamInput.value.toLowerCase();
       games = games.filter(g => g.home.toLowerCase().includes(q) || g.away.toLowerCase().includes(q));
     }
 
-    // sort by best value (max of 1X2)
+    // Sortiere nach maximalem Value (1X2)
     games.sort((a,b) => Math.max(b.value.home,b.value.draw,b.value.away) - Math.max(a.value.home,a.value.draw,a.value.away));
 
     const topGames = games.slice(0,3);
@@ -68,7 +68,7 @@ async function loadGames(){
         <div class="team"><img src="${g.homeLogo}" alt=""> ${g.home} xG:${g.homeXG} | Trend:${g.trend}</div>
         <div class="team"><img src="${g.awayLogo}" alt=""> ${g.away} xG:${g.awayXG} | Trend:${g.trend}</div>
       `;
-      // bars
+      // Balken
       div.appendChild(createBar("Home", g.prob?.home ?? g.value.home, "#4caf50"));
       div.appendChild(createBar("Draw", g.prob?.draw ?? g.value.draw, "#f59e0b"));
       div.appendChild(createBar("Away", g.prob?.away ?? g.value.away, "#ef4444"));
@@ -100,11 +100,11 @@ async function loadGames(){
       const div = document.createElement("div");
       div.className = "game";
       div.style.borderLeft = `6px solid #2196f3`;
-      div.textContent = `${g.home} vs ${g.away} (${g.league}) → Over2.5 ${ (g.prob?.over25 ?? g.value.over25).toFixed(2) } | Trend: ${g.trend}`;
+      div.textContent = `${g.home} vs ${g.away} (${g.league}) → Over2.5 ${(g.prob?.over25 ?? g.value.over25).toFixed(2)} | Trend: ${g.trend}`;
       top5OverDiv.appendChild(div);
     });
 
-    // other games
+    // Alle anderen Spiele
     gamesDiv.innerHTML = "";
     otherGames.forEach(g => {
       g.btts = g.btts ?? 0;
