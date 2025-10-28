@@ -56,6 +56,7 @@ async function fetchGamesFromAPI() {
 
       const data = await res.json();
 
+      // Logge die komplette API-Antwort
       console.log(`API Antwort für Liga ${leagueName}:`, data);
 
       if (!data.matches || !Array.isArray(data.matches)) {
@@ -63,6 +64,7 @@ async function fetchGamesFromAPI() {
         return [];
       }
 
+      // Verarbeite Spiele
       data.matches.forEach((m) => {
         const homeXG = +(0.8 + Math.random() * 1.6).toFixed(2);
         const awayXG = +(0.6 + Math.random() * 1.6).toFixed(2);
@@ -170,3 +172,4 @@ async function predictMatchOutcome(homeXG, awayXG) {
 app.get("*", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
 app.listen(PORT, () => console.log(`Server läuft auf Port ${PORT}`));
+            
