@@ -38,10 +38,19 @@ async function fetchGamesFromAPI() {
   for (const [leagueName, id] of Object.entries(LEAGUE_IDS)) {
     try {
       const url = `https://api.football-data.org/v4/competitions/${id}/matches?status=SCHEDULED`;
+      console.log("API URL:", url); // Prüfe, ob die URL korrekt ist
       const res = await fetch(url, { headers });
-      if (!res.ok) continue;
+
+      if (!res.ok) {
+        console.error(`Fehler beim Abrufen der Liga ${leagueName}: ${res.statusText}`);
+        continue;
+      }
+
       const data = await res.json();
-      if (!data.matches || !Array.isArray(data.matches)) continue;
+      if (!data.matches || !Array.isArray(data.matches)) {
+        console.error(`Keine Spieldaten für Liga ${leagueName} gefunden.`);
+        continue;
+      }
 
       data.matches.forEach((m) => {
         const homeXG = +(0.8 + Math.random() * 1.6).toFixed(2);
