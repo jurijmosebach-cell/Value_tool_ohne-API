@@ -93,104 +93,93 @@ function computeBTTSProb(homeLambda, awayLambda){
 }
 
 /* ---------- Fetch matches ---------- */
-// Berechnung der letzten 10 Spiele eines Teams
-async function getLast10Games(teamName) {
+async function fetchGamesFromAPI(){
+  if(!FOOTBALL_DATA_KEY) return [];
   const headers = { "X-Auth-Token": FOOTBALL_DATA_KEY };
   const allGames = [];
-  for (const [leagueName, id] of Object.entries(LEAGUE_IDS)) {
-    try {
-      const url = `https://api.football-data.org/v4/competitions/${id}/matches?status=FINISHED&team=${teamName}`;
-      const res = await fetch(url, { headers });
-      if (!res.ok) continue;
-      const data = await res.json();
-      if (!data.matches || !Array.isArray(data.matches)) continue;
 
-      data.matches.forEach((m) => {
+  for(const [leagueName, id] of Object.entries(LEAGUE_IDS)){
+    try{
+      const url = `https://api.football-data.org/v4/competitions/${id}/matches?status=SCHEDULED`;
+      const res = await fetch(url,{headers});
+      if(!res.ok) continue;
+      const data = await res.json();
+      if(!data.matches || !Array.isArray(data.matches)) continue;
+
+      data.matches.forEach(m=>{
+        const homeXG = +(0.8 + Math.random()*1.6).toFixed(2);
+        const awayXG = +(0.6 + Math.random()*1.6).toFixed(2);
+
+        const outcome = computeMatchOutcomeProbs(homeXG, awayXG);
+        const over25Prob = computeOver25Prob(homeXG, awayXG);
+        const btts = computeBTTSProb(homeXG, awayXG);
+
+        const odds = {
+          home: +(1.6 + Math.random()*1.6).toFixed(2),
+          draw: +(2.0 + Math.random()*1.5).toFixed(2),
+          away: +(1.7 + Math.random()*1.6).toFixed(2),
+          over25: +(1.7 + Math.random()*0.7).toFixed(2),
+          under25: +(1.8 + Math.random()*0.7).toFixed(2)
+        };
+
+        const prob = { home: outcome.home, draw: outcome.draw, away: outcome.away, over25: over25Prob, under25: +(1-over25Prob).toFixed(4) };
+        const value = {
+          home: +((prob.home*odds.home)-1).toFixed(4),
+          draw: +((prob.draw*odds.draw)-1).toFixed(4),
+          away: +((prob.away*odds.away)-1).toFixed(4),
+          over25: +((prob.over25*odds.over25)-1).toFixed(4),
+          under25: +((prob.under25*odds.under25)-1).toFixed(4)
+        };
+
+        let trend = "neutral";
+        const mainVal = Math.max(value.home,value.draw,value.away);
+        if(mainVal>0.12 && prob.home>prob.away && prob.home>prob.draw) trend="home";
+        else if(mainVal>0.12 && prob.away>prob.home && prob.away>prob.draw) trend="away";
+        else if(Math.abs(prob.home-prob.away)<0.08 && prob.draw>=Math.max(prob.home,prob.away)) trend="draw";
+
         allGames.push({
-          home: m.homeTeam.name,
-          away: m.awayTeam.name,
-          homeXG: +(0.8 + Math.random() * 1.6).toFixed(2),
-          awayXG: +(0.6 + Math.random() * 1.6).toFixed(2),
+          id:m.id,
+          date:m.utcDate,
+          league:leagueName,
+          home:m.homeTeam?.name||"Home",
+          away:m.awayTeam?.name||"Away",
+          homeLogo:`https://flagcdn.com/48x36/${getFlag(m.homeTeam?.name||"")}.png`,
+          awayLogo:`https://flagcdn.com/48x36/${getFlag(m.awayTeam?.name||"")}.png`,
+          homeXG, awayXG, odds, prob, value, btts, trend
         });
       });
 
-    } catch (err) {
-      console.error("Fehler beim Abrufen der letzten 10 Spiele:", err.message);
-    }
+    }catch(err){ console.error("Fehler Liga",leagueName,err.message); continue; }
   }
 
-  // Nur die letzten 10 Spiele zurückgeben
-  return allGames.slice(0, 10);
+  allGames.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  return allGames;
 }
 
-// Berechnung des Durchschnitts der xG-Werte der letzten 10 Spiele
-function calculateAverageXG(games) {
-  let totalHomeXG = 0;
-  let totalAwayXG = 0;
-
-  games.forEach((game) => {
-    totalHomeXG += game.homeXG;
-    totalAwayXG += game.awayXG;
-  });
-
-  const avgHomeXG = totalHomeXG / games.length;
-  const avgAwayXG = totalAwayXG / games.length;
-
-  return { avgHomeXG, avgAwayXG };
-}
-
-// API-Endpunkt für Spiele und Berechnung der Vorhersagen mit letzten 10 Spielen
-app.get("/api/games", async (req, res) => {
-  try {
+/* ---------- API ---------- */
+app.get("/api/games", async (req,res)=>{
+  try{
     const now = Date.now();
-    if (!cache.data.length || now - cache.timestamp > CACHE_DURATION) {
+    if(!cache.data.length || now-cache.timestamp>CACHE_DURATION){
       const games = await fetchGamesFromAPI();
       cache = { timestamp: now, data: games };
     }
 
     let filtered = cache.data.slice();
-    if (req.query.date) filtered = filtered.filter((g) => g.date.startsWith(req.query.date));
+    if(req.query.date) filtered = filtered.filter(g=>g.date.startsWith(req.query.date));
 
-    const top7Value = filtered.slice().sort((a, b) => Math.max(b.value.home, b.value.draw, b.value.away) - Math.max(a.value.home, a.value.draw, a.value.away)).slice(0, 7)
-      .map(g => ({ home: g.home, away: g.away, league: g.league, value: Math.max(g.value.home, g.value.draw, g.value.away), trend: g.trend }));
+    const top7Value = filtered.slice().sort((a,b)=>Math.max(b.value.home,b.value.draw,b.value.away)-Math.max(a.value.home,a.value.draw,a.value.away)).slice(0,7)
+      .map(g=>({home:g.home,away:g.away,league:g.league,value:Math.max(g.value.home,g.value.draw,g.value.away),trend:g.trend}));
 
-    const top5Over25 = filtered.slice().sort((a, b) => b.value.over25 - a.value.over25).slice(0, 5)
-      .map(g => ({ home: g.home, away: g.away, league: g.league, value: g.value.over25, trend: g.trend }));
-
-    // Berechnung der letzten 10 Spiele für Heim- und Auswärtsteam
-    for (let game of filtered) {
-      const homeGames = await getLast10Games(game.home);
-      const awayGames = await getLast10Games(game.away);
-
-      const { avgHomeXG, avgAwayXG } = calculateAverageXG([...homeGames, ...awayGames]);
-
-      // xG-Werte anpassen basierend auf den Durchschnittswerten der letzten 10 Spiele
-      game.homeXG = avgHomeXG;
-      game.awayXG = avgAwayXG;
-
-      // Berechnung der Vorhersage mit den angepassten xG-Werten
-      const outcome = computeMatchOutcomeProbs(game.homeXG, game.awayXG);
-      const over25Prob = computeOver25Prob(game.homeXG, game.awayXG);
-      const btts = computeBTTSProb(game.homeXG, game.awayXG);
-
-      game.prob = { home: outcome.home, draw: outcome.draw, away: outcome.away, over25: over25Prob, under25: +(1 - over25Prob).toFixed(4) };
-      game.value = {
-        home: +((game.prob.home * game.odds.home) - 1).toFixed(4),
-        draw: +((game.prob.draw * game.odds.draw) - 1).toFixed(4),
-        away: +((game.prob.away * game.odds.away) - 1).toFixed(4),
-        over25: +((game.prob.over25 * game.odds.over25) - 1).toFixed(4),
-        under25: +((game.prob.under25 * game.odds.under25) - 1).toFixed(4)
-      };
-    }
+    const top5Over25 = filtered.slice().sort((a,b)=>b.value.over25-a.value.over25).slice(0,5)
+      .map(g=>({home:g.home,away:g.away,league:g.league,value:g.value.over25,trend:g.trend}));
 
     res.json({ response: filtered, top7Value, top5Over25 });
 
-  } catch (err) {
-    res.status(500).json({ response: [], top7Value: [], top5Over25: [], error: err.message });
-  }
+  }catch(err){ res.status(500).json({ response: [], top7Value: [], top5Over25: [], error: err.message }); }
 });
 
 /* Serve frontend */
-app.get("*", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
+app.get("*",(req,res)=>res.sendFile(path.join(__dirname,"index.html")));
 
-app.listen(PORT, () => console.log(`Server läuft auf Port ${PORT}`));
+app.listen(PORT,()=>console.log(`Server läuft auf Port ${PORT}`));
