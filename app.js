@@ -27,18 +27,77 @@ function getTrafficColor(value, trend){
 }
 
 async function loadGames(){
+async function loadGames() {
   try {
     let url = "/api/games";
-    if(dateInput.value) url += "?date=" + dateInput.value;
+    if (dateInput.value) url += "?date=" + dateInput.value;
     const res = await fetch(url);
+
+    if (!res.ok) {
+      console.error(`Fehler beim Abrufen der Spieldaten: ${res.status} ${res.statusText}`);
+      gamesDiv.innerHTML = "<p>Fehler beim Laden der Spiele. Siehe Konsole.</p>";
+      return;
+    }
+
     const data = await res.json();
 
-    if(!data || !Array.isArray(data.response)){
+    if (!data || !Array.isArray(data.response)) {
+      console.error("Daten sind nicht im erwarteten Format:", data);
       gamesDiv.innerHTML = "<p>Fehler: keine Spieldaten erhalten.</p>";
       return;
     }
 
-    let games = data.response.slice();
+    // **Neuer Schritt**: Vorhersagen für jedes Spiel abrufen
+    const predictions = await fetchPredictionForGames(data.response);
+
+    gamesDiv.innerHTML = "";
+    data.response.forEach((game, index) => {
+      // Holen der Vorhersage für das aktuelle Spiel
+      const prediction = predictions[index];
+
+      // Erstellen des HTML-Elements für das Spiel
+      const div = document.createElement("div");
+      div.className = "game";
+      div.innerHTML = `
+        <div><strong>${game.home}</strong> vs <strong>${game.away}</strong> (${game.league}) - Vorhersage: ${prediction.homeWin} | Trend: ${game.trend}</div>
+        <div><strong>Vorhersage für Heimsieg:</strong> ${prediction.homeWin}%</div>
+        <div><strong>Vorhersage für Unentschieden:</strong> ${prediction.draw}%</div>
+        <div><strong>Vorhersage für Auswärtssieg:</strong> ${prediction.awayWin}%</div>
+      `;
+
+      // Spiele in das HTML einfügen
+      gamesDiv.appendChild(div);
+    });
+
+  } catch (err) {
+    console.error("Fehler beim Laden der Spiele:", err);
+    gamesDiv.innerHTML = "<p>Fehler beim Laden der Spiele. Siehe Konsole.</p>";
+  }
+}
+
+// API-Aufruf, um Vorhersagen zu laden
+async function fetchPredictionForGames(games) {
+  const predictions = [];
+  for (const game of games) {
+    const res = await fetch("/api/predict", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        homeTeam: game.home,
+        awayTeam: game.away,
+        homeXG: game.homeXG,
+        awayXG: game.awayXG,
+      }),
+    });
+
+    const data = await res.json();
+    predictions.push(data.prediction); // Speichern der Vorhersage für jedes Spiel
+  }
+  return predictions; // Rückgabe der Vorhersagen für alle Spiele
+}
+  
 
     // Filter Liga
     if(leagueSelect.value) games = games.filter(g => g.league === leagueSelect.value);
