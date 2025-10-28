@@ -31,9 +31,17 @@ async function loadGames() {
     let url = "/api/games";
     if (dateInput.value) url += "?date=" + dateInput.value;
     const res = await fetch(url);
+
+    if (!res.ok) {
+      console.error(`Fehler beim Abrufen der Spieldaten: ${res.status} ${res.statusText}`);
+      gamesDiv.innerHTML = "<p>Fehler beim Laden der Spiele. Siehe Konsole.</p>";
+      return;
+    }
+
     const data = await res.json();
 
     if (!data || !Array.isArray(data.response)) {
+      console.error("Daten sind nicht im erwarteten Format:", data);
       gamesDiv.innerHTML = "<p>Fehler: keine Spieldaten erhalten.</p>";
       return;
     }
@@ -56,7 +64,7 @@ async function loadGames() {
     });
 
   } catch (err) {
-    console.error("Fehler beim Laden:", err);
+    console.error("Fehler beim Laden der Spiele:", err);
     gamesDiv.innerHTML = "<p>Fehler beim Laden der Spiele. Siehe Konsole.</p>";
   }
 }
