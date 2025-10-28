@@ -31,27 +31,37 @@ const LEAGUE_IDS = {
 
 // Fetch matches from Football-Data API
 async function fetchGamesFromAPI() {
-  if (!FOOTBALL_DATA_KEY) return [];
+  if (!FOOTBALL_DATA_KEY) {
+    console.error("Kein API-Schlüssel gefunden!");
+    return [];
+  }
+
   const headers = { "X-Auth-Token": FOOTBALL_DATA_KEY };
   const allGames = [];
+
+  console.log("Start fetching games from API...");
 
   for (const [leagueName, id] of Object.entries(LEAGUE_IDS)) {
     try {
       const url = `https://api.football-data.org/v4/competitions/${id}/matches?status=SCHEDULED`;
-      console.log("API URL:", url); // Prüfe, ob die URL korrekt ist
+      console.log(`Fetching data for ${leagueName} with URL: ${url}`);
+
       const res = await fetch(url, { headers });
 
       if (!res.ok) {
-        console.error(`Fehler beim Abrufen der Liga ${leagueName}: ${res.statusText}`);
+        console.error(`API Fehler für Liga ${leagueName}: ${res.status} ${res.statusText}`);
         continue;
       }
 
       const data = await res.json();
+      console.log(`Erfolgreich Daten für Liga ${leagueName} abgerufen:`, data.matches);
+
       if (!data.matches || !Array.isArray(data.matches)) {
-        console.error(`Keine Spieldaten für Liga ${leagueName} gefunden.`);
+        console.error(`Keine Spiele für Liga ${leagueName} gefunden.`);
         continue;
       }
 
+      // Verarbeite Spiele
       data.matches.forEach((m) => {
         const homeXG = +(0.8 + Math.random() * 1.6).toFixed(2);
         const awayXG = +(0.6 + Math.random() * 1.6).toFixed(2);
