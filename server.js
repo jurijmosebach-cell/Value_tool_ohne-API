@@ -120,7 +120,7 @@ async function fetchGamesFromAPI() {
         });
       });
     } catch (err) {
-      console.error("Fehler Liga", leagueName, err.message);
+      console.error(`Fehler beim Abrufen der Liga ${leagueName}:`, err.message);
       continue;
     }
   }
@@ -136,6 +136,7 @@ app.post("/api/predict", async (req, res) => {
     const prediction = await predictMatchOutcome(homeXG, awayXG);
     res.json({ prediction });
   } catch (err) {
+    console.error("Fehler bei der Vorhersage:", err);
     res.status(500).json({ error: err.message });
   }
 });
