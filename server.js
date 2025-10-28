@@ -48,20 +48,21 @@ async function fetchGamesFromAPI() {
 
       const res = await fetch(url, { headers });
 
+      // Wenn der Status nicht ok ist, logge die Antwort
       if (!res.ok) {
         console.error(`API Fehler für Liga ${leagueName}: ${res.status} ${res.statusText}`);
-        continue;
+        return [];
       }
 
       const data = await res.json();
-      console.log(`Erfolgreich Daten für Liga ${leagueName} abgerufen:`, data.matches);
+
+      console.log(`API Antwort für Liga ${leagueName}:`, data);
 
       if (!data.matches || !Array.isArray(data.matches)) {
         console.error(`Keine Spiele für Liga ${leagueName} gefunden.`);
-        continue;
+        return [];
       }
 
-      // Verarbeite Spiele
       data.matches.forEach((m) => {
         const homeXG = +(0.8 + Math.random() * 1.6).toFixed(2);
         const awayXG = +(0.6 + Math.random() * 1.6).toFixed(2);
@@ -120,7 +121,7 @@ async function fetchGamesFromAPI() {
         });
       });
     } catch (err) {
-      console.error(`Fehler beim Abrufen der Liga ${leagueName}:`, err.message);
+      console.error("Fehler beim Abrufen der Liga:", err.message);
       continue;
     }
   }
