@@ -86,12 +86,6 @@ function computeOver25Prob(homeLambda, awayLambda, maxGoals=7){
   return +(1 - pLe2).toFixed(4);
 }
 
-function computeBTTSProb(homeLambda, awayLambda){
-  const pHomeAtLeast1 = 1 - poisson(0, homeLambda);
-  const pAwayAtLeast1 = 1 - poisson(0, awayLambda);
-  return +(pHomeAtLeast1 * pAwayAtLeast1).toFixed(4);
-}
-
 /* ---------- Fetch matches ---------- */
 async function fetchGamesFromAPI(){
   if(!FOOTBALL_DATA_KEY) return [];
@@ -112,7 +106,9 @@ async function fetchGamesFromAPI(){
 
         const outcome = computeMatchOutcomeProbs(homeXG, awayXG);
         const over25Prob = computeOver25Prob(homeXG, awayXG);
-        const btts = computeBTTSProb(homeXG, awayXG);
+        const pHomeAtLeast1 = 1 - poisson(0, homeXG);
+        const pAwayAtLeast1 = 1 - poisson(0, awayXG);
+        const btts = +(pHomeAtLeast1 * pAwayAtLeast1).toFixed(4);
 
         const odds = {
           home: +(1.6 + Math.random()*1.6).toFixed(2),
