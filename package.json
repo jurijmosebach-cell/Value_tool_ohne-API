@@ -1,6 +1,6 @@
 {
   "name": "xg-value-tool",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "xG Value Dashboard mit SoccerData + Football-Data Fallback",
   "type": "module",
   "main": "server.js",
@@ -29,6 +29,6 @@
     "poisson",
     "sports-data"
   ],
-  "author": "Dein Name oder Team",
+  "author": "Dein Name",
   "license": "MIT"
 }
