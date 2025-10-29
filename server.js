@@ -1,43 +1,35 @@
-// server.js
-import dotenv from "dotenv";
-dotenv.config();
-
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import fetch from "node-fetch";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 const app = express();
 app.use(express.static(__dirname));
 
 const PORT = process.env.PORT || 10000;
-const CACHE_DURATION = Number(process.env.CACHE_DURATION) || 15 * 60 * 1000;
-const LOG_REQUESTS = process.env.LOG_REQUESTS === "true";
-
-// 🔑 API Keys
-const SOCCERDATA_KEY = process.env.SOCCERDATA_API_KEY || "";
 const FOOTBALLDATA_KEY = process.env.FOOTBALL_DATA_API_KEY || "";
+const SOCCERDATA_KEY = process.env.SOCCERDATA_API_KEY || "";
 
-// Cache für Spiele
+// Cache für 15 Minuten
 let cache = { timestamp: 0, data: [] };
+const CACHE_DURATION = 15 * 60 * 1000;
 
-// ⚽ Ligen (SoccerData season_id + FootballData competition code)
+// Ligen mit IDs für beide APIs
 const LEAGUES = {
   "Premier League": { soccerdata: 237, footballdata: "PL" },
   "Bundesliga": { soccerdata: 195, footballdata: "BL1" },
   "La Liga": { soccerdata: 244, footballdata: "PD" },
   "Serie A": { soccerdata: 207, footballdata: "SA" },
   "Ligue 1": { soccerdata: 216, footballdata: "FL1" },
-  "Champions League": { soccerdata: 238, footballdata: "CL" },
-  "Eredivisie": { soccerdata: 203, footballdata: "DED" },
-  "Campeonato Brasileiro Série A": { soccerdata: 224, footballdata: "BSA" },
-  "Championship": { soccerdata: 196, footballdata: "ELC" },
-  "Primeira Liga": { soccerdata: 227, footballdata: "PPL" }
 };
 
-/* ---------- Mathematische Funktionen ---------- */
+// === Mathematische Hilfsfunktionen ===
 function factorial(n) {
   if (n <= 1) return 1;
   let f = 1;
@@ -50,19 +42,25 @@ function poisson(k, lambda) {
 }
 
 function computeMatchOutcomeProbs(homeLambda, awayLambda, maxGoals = 7) {
-  let home = 0, draw = 0, away = 0;
+  let homeProb = 0,
+    drawProb = 0,
+    awayProb = 0;
   for (let i = 0; i <= maxGoals; i++) {
     const pHome = poisson(i, homeLambda);
     for (let j = 0; j <= maxGoals; j++) {
       const pAway = poisson(j, awayLambda);
       const p = pHome * pAway;
-      if (i > j) home += p;
-      else if (i === j) draw += p;
-      else away += p;
+      if (i > j) homeProb += p;
+      else if (i === j) drawProb += p;
+      else awayProb += p;
     }
   }
-  const total = home + draw + away;
-  return { home: home / total, draw: draw / total, away: away / total };
+  const total = homeProb + drawProb + awayProb;
+  return {
+    home: +(homeProb / total).toFixed(4),
+    draw: +(drawProb / total).toFixed(4),
+    away: +(awayProb / total).toFixed(4),
+  };
 }
 
 function computeOver25Prob(homeLambda, awayLambda, maxGoals = 7) {
@@ -73,27 +71,36 @@ function computeOver25Prob(homeLambda, awayLambda, maxGoals = 7) {
       if (i + j <= 2) pLe2 += ph * poisson(j, awayLambda);
     }
   }
-  return 1 - pLe2;
+  return +(1 - pLe2).toFixed(4);
 }
 
-/* ---------- Letzte 10 Spiele berechnen ---------- */
-function calculateTrend(lastMatches) {
-  const goals = lastMatches.map(m => m.goals_scored);
-  const avg = goals.reduce((a, b) => a + b, 0) / goals.length;
-  if (avg > 2.2) return "offensiv";
-  if (avg < 1.2) return "defensiv";
+// === Trendberechnung (letzte 10 Spiele) ===
+function calculateTrend(matches) {
+  let homeGoals = 0,
+    awayGoals = 0;
+  matches.forEach((m) => {
+    homeGoals += m.home_score || 0;
+    awayGoals += m.away_score || 0;
+  });
+  const diff = homeGoals - awayGoals;
+  if (diff > 4) return "home";
+  if (diff < -4) return "away";
   return "neutral";
 }
 
-/* ---------- SoccerData Fetch ---------- */
+// === Fetch SoccerData (nur heutige Spiele) ===
 async function fetchFromSoccerData() {
-  const leagues = Object.entries(LEAGUES);
-  const all = [];
+  if (!SOCCERDATA_KEY) return [];
+  console.log("📡 Lade Spiele von SoccerData...");
 
-  for (const [name, ids] of leagues) {
+  const all = [];
+  const today = new Date();
+  const dateStr = today.toISOString().split("T")[0];
+
+  for (const [leagueName, ids] of Object.entries(LEAGUES)) {
     try {
       const res = await fetch(
-        `https://app.sportdataapi.com/api/v1/soccer/matches?apikey=${SOCCERDATA_KEY}&season_id=${ids.soccerdata}`
+        `https://app.sportdataapi.com/api/v1/soccer/matches?apikey=${SOCCERDATA_KEY}&season_id=${ids.soccerdata}&date_from=${dateStr}&date_to=${dateStr}`
       );
       if (!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json();
@@ -103,6 +110,9 @@ async function fetchFromSoccerData() {
       const trend = calculateTrend(recentMatches);
 
       data.data.forEach((m) => {
+        const matchDate = m.match_start?.split("T")[0];
+        if (matchDate !== dateStr) return;
+
         const homeXG = +(0.8 + Math.random() * 1.6).toFixed(2);
         const awayXG = +(0.6 + Math.random() * 1.6).toFixed(2);
         const outcome = computeMatchOutcomeProbs(homeXG, awayXG);
@@ -114,7 +124,7 @@ async function fetchFromSoccerData() {
         all.push({
           id: m.match_id,
           date: m.match_start,
-          league: name,
+          league: leagueName,
           home: m.home_team?.name || "Home",
           away: m.away_team?.name || "Away",
           homeXG,
@@ -122,31 +132,40 @@ async function fetchFromSoccerData() {
           prob: { ...outcome, over25 },
           value: { ...outcome, over25 },
           btts,
-          trend
+          trend,
         });
       });
     } catch (err) {
-      console.log(`⚠️ Fehler bei Liga ${name}: ${err.message}`);
+      console.log(`⚠️ Fehler bei Liga ${leagueName}: ${err.message}`);
     }
   }
 
+  console.log(`✅ SoccerData geladen: ${all.length} Spiele`);
   return all;
 }
 
-/* ---------- Football-Data.org Fallback ---------- */
+// === Fallback: Football-Data ===
 async function fetchFromFootballData() {
   if (!FOOTBALLDATA_KEY) return [];
+  console.log("⚽ Fallback: Football-Data.org ...");
+
   const headers = { "X-Auth-Token": FOOTBALLDATA_KEY };
   const games = [];
+  const today = new Date();
+  const dateStr = today.toISOString().split("T")[0];
 
-  for (const [name, ids] of Object.entries(LEAGUES)) {
+  for (const [leagueName, ids] of Object.entries(LEAGUES)) {
     try {
       const url = `https://api.football-data.org/v4/competitions/${ids.footballdata}/matches?status=SCHEDULED`;
       const res = await fetch(url, { headers });
       if (!res.ok) continue;
       const data = await res.json();
+      if (!data.matches) continue;
 
       data.matches.forEach((m) => {
+        const matchDate = m.utcDate.split("T")[0];
+        if (matchDate !== dateStr) return;
+
         const homeXG = +(0.8 + Math.random() * 1.6).toFixed(2);
         const awayXG = +(0.6 + Math.random() * 1.6).toFixed(2);
         const outcome = computeMatchOutcomeProbs(homeXG, awayXG);
@@ -158,7 +177,7 @@ async function fetchFromFootballData() {
         games.push({
           id: m.id,
           date: m.utcDate,
-          league: name,
+          league: leagueName,
           home: m.homeTeam?.name || "Home",
           away: m.awayTeam?.name || "Away",
           homeXG,
@@ -166,7 +185,7 @@ async function fetchFromFootballData() {
           prob: { ...outcome, over25 },
           value: { ...outcome, over25 },
           btts,
-          trend: "neutral"
+          trend: "neutral",
         });
       });
     } catch (err) {
@@ -174,38 +193,29 @@ async function fetchFromFootballData() {
     }
   }
 
+  console.log(`✅ FootballData geladen: ${games.length} Spiele`);
   return games;
 }
 
-/* ---------- API Endpoint ---------- */
+// === API Endpoint ===
 app.get("/api/games", async (req, res) => {
   try {
     const now = Date.now();
-
     if (!cache.data.length || now - cache.timestamp > CACHE_DURATION) {
-      console.log("⏳ Lade neue Spiele...");
-
+      console.log("🕒 Aktualisiere Cache...");
       let games = await fetchFromSoccerData();
-      if (!games.length) {
-        console.log("⚠️ SoccerData down — wechsle zu FootballData.org");
-        games = await fetchFromFootballData();
-      }
-
+      if (!games.length) games = await fetchFromFootballData();
       cache = { timestamp: now, data: games };
     }
 
-    res.json({ response: cache.data });
+    const filtered = cache.data.slice();
+    res.json({ response: filtered });
   } catch (err) {
-    console.error("Fehler beim Laden:", err);
-    res.status(500).json({ response: [], error: err.message });
+    res.status(500).json({ error: err.message, response: [] });
   }
 });
 
-/* ---------- Frontend ---------- */
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
+// === Serve Frontend ===
+app.get("*", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
-app.listen(PORT, () =>
-  console.log(`✅ Server läuft auf Port ${PORT}`)
-);
+app.listen(PORT, () => console.log(`🚀 Server läuft auf Port ${PORT}`));
