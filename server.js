@@ -1,3 +1,7 @@
+// server.js
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -9,15 +13,17 @@ const app = express();
 app.use(express.static(__dirname));
 
 const PORT = process.env.PORT || 10000;
+const CACHE_DURATION = Number(process.env.CACHE_DURATION) || 15 * 60 * 1000;
+const LOG_REQUESTS = process.env.LOG_REQUESTS === "true";
 
 // 🔑 API Keys
 const SOCCERDATA_KEY = process.env.SOCCERDATA_API_KEY || "";
 const FOOTBALLDATA_KEY = process.env.FOOTBALL_DATA_API_KEY || "";
 
+// Cache für Spiele
 let cache = { timestamp: 0, data: [] };
-const CACHE_DURATION = 15 * 60 * 1000; // 15 Min
 
-/* ---------- Ligen ---------- */
+// ⚽ Ligen (SoccerData season_id + FootballData competition code)
 const LEAGUES = {
   "Premier League": { soccerdata: 237, footballdata: "PL" },
   "Bundesliga": { soccerdata: 195, footballdata: "BL1" },
@@ -70,6 +76,15 @@ function computeOver25Prob(homeLambda, awayLambda, maxGoals = 7) {
   return 1 - pLe2;
 }
 
+/* ---------- Letzte 10 Spiele berechnen ---------- */
+function calculateTrend(lastMatches) {
+  const goals = lastMatches.map(m => m.goals_scored);
+  const avg = goals.reduce((a, b) => a + b, 0) / goals.length;
+  if (avg > 2.2) return "offensiv";
+  if (avg < 1.2) return "defensiv";
+  return "neutral";
+}
+
 /* ---------- SoccerData Fetch ---------- */
 async function fetchFromSoccerData() {
   const leagues = Object.entries(LEAGUES);
@@ -83,6 +98,9 @@ async function fetchFromSoccerData() {
       if (!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json();
       if (!data?.data) continue;
+
+      const recentMatches = data.data.slice(-10);
+      const trend = calculateTrend(recentMatches);
 
       data.data.forEach((m) => {
         const homeXG = +(0.8 + Math.random() * 1.6).toFixed(2);
@@ -104,7 +122,7 @@ async function fetchFromSoccerData() {
           prob: { ...outcome, over25 },
           value: { ...outcome, over25 },
           btts,
-          trend: "neutral"
+          trend
         });
       });
     } catch (err) {
@@ -168,8 +186,6 @@ app.get("/api/games", async (req, res) => {
       console.log("⏳ Lade neue Spiele...");
 
       let games = await fetchFromSoccerData();
-
-      // 🟡 Wenn SoccerData leer -> Fallback auf FootballData
       if (!games.length) {
         console.log("⚠️ SoccerData down — wechsle zu FootballData.org");
         games = await fetchFromFootballData();
