@@ -1,33 +1,26 @@
 {
   "name": "xg-value-tool",
-  "version": "2.3.0",
-  "description": "xG Value Dashboard mit SoccerData + Football-Data Fallback",
+  "version": "1.1.0",
+  "description": "Präzises xG-Value- und Trendanalyse-Tool für Fußballwetten",
   "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js",
-    "build": "echo 'Kein Build notwendig'"
+    "build": "echo 'No build step required for Render'"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "node-fetch": "^3.3.2",
-    "dotenv": "^16.4.5"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.7"
+    "express": "^4.19.2"
   },
   "engines": {
     "node": ">=18"
   },
   "keywords": [
-    "xG",
-    "value",
     "football",
-    "soccer",
-    "analytics",
-    "poisson",
-    "sports-data"
+    "xg",
+    "betting",
+    "analysis",
+    "trend",
+    "value"
   ],
   "author": "Dein Name",
   "license": "MIT"
