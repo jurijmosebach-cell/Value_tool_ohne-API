@@ -8,33 +8,20 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const app = express();
 app.use(express.static(__dirname));
 
 const PORT = process.env.PORT || 10000;
-const FOOTBALLDATA_KEY = process.env.FOOTBALL_DATA_API_KEY || "";
+const FOOTBALL_DATA_KEY = process.env.FOOTBALL_DATA_API_KEY || "";
 const SOCCERDATA_KEY = process.env.SOCCERDATA_API_KEY || "";
+const CACHE_DURATION = parseInt(process.env.CACHE_DURATION || "900000");
 
-// 🧠 Cache-Struktur
-let cache = { timestamp: 0, date: null, data: [] };
-const CACHE_DURATION = Number(process.env.CACHE_DURATION) || 15 * 60 * 1000;
+let cache = { timestamp: 0, date: "", data: [] };
 
-// 🌍 Ligen mit IDs für beide APIs
-const LEAGUES = {
-  "Premier League": { soccerdata: 237, footballdata: "PL" },
-  "Bundesliga": { soccerdata: 195, footballdata: "BL1" },
-  "La Liga": { soccerdata: 244, footballdata: "PD" },
-  "Serie A": { soccerdata: 207, footballdata: "SA" },
-  "Ligue 1": { soccerdata: 216, footballdata: "FL1" },
-};
+// -------------------- Hilfsfunktionen --------------------
 
-// === Mathematische Hilfsfunktionen ===
 function factorial(n) {
-  if (n <= 1) return 1;
-  let f = 1;
-  for (let i = 2; i <= n; i++) f *= i;
-  return f;
+  return n <= 1 ? 1 : n * factorial(n - 1);
 }
 
 function poisson(k, lambda) {
@@ -74,167 +61,162 @@ function computeOver25Prob(homeLambda, awayLambda, maxGoals = 7) {
   return +(1 - pLe2).toFixed(4);
 }
 
-// === Trendberechnung (letzte 10 Spiele) ===
-function calculateTrend(matches) {
-  let homeGoals = 0,
-    awayGoals = 0;
-  matches.forEach((m) => {
-    homeGoals += m.home_score || 0;
-    awayGoals += m.away_score || 0;
-  });
-  const diff = homeGoals - awayGoals;
-  if (diff > 4) return "home";
-  if (diff < -4) return "away";
-  return "neutral";
+function randomXG(min = 0.6, max = 2.0) {
+  return +(min + Math.random() * (max - min)).toFixed(2);
 }
 
-// === Fetch SoccerData (heutige Spiele) ===
-async function fetchFromSoccerData() {
-  if (!SOCCERDATA_KEY) return [];
-  console.log("📡 Lade Spiele von SoccerData...");
+// -------------------- Fetch: Football-Data --------------------
 
-  const all = [];
-  const today = new Date();
-  const dateStr = today.toISOString().split("T")[0];
-
-  for (const [leagueName, ids] of Object.entries(LEAGUES)) {
-    try {
-      const res = await fetch(
-        `https://app.sportdataapi.com/api/v1/soccer/matches?apikey=${SOCCERDATA_KEY}&season_id=${ids.soccerdata}&date_from=${dateStr}&date_to=${dateStr}`
-      );
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const data = await res.json();
-      if (!data?.data) continue;
-
-      const recentMatches = data.data.slice(-10);
-      const trend = calculateTrend(recentMatches);
-
-      data.data.forEach((m) => {
-        const matchDate = m.match_start?.split("T")[0];
-        if (matchDate !== dateStr) return;
-
-        const homeXG = +(0.8 + Math.random() * 1.6).toFixed(2);
-        const awayXG = +(0.6 + Math.random() * 1.6).toFixed(2);
-        const outcome = computeMatchOutcomeProbs(homeXG, awayXG);
-        const over25 = computeOver25Prob(homeXG, awayXG);
-        const pHomeAtLeast1 = 1 - poisson(0, homeXG);
-        const pAwayAtLeast1 = 1 - poisson(0, awayXG);
-        const btts = +(pHomeAtLeast1 * pAwayAtLeast1).toFixed(4);
-
-        all.push({
-          id: m.match_id,
-          date: m.match_start,
-          league: leagueName,
-          home: m.home_team?.name || "Home",
-          away: m.away_team?.name || "Away",
-          homeXG,
-          awayXG,
-          prob: { ...outcome, over25 },
-          value: { ...outcome, over25 },
-          btts,
-          trend,
-        });
-      });
-    } catch (err) {
-      console.log(`⚠️ Fehler bei Liga ${leagueName}: ${err.message}`);
-    }
-  }
-
-  console.log(`✅ SoccerData geladen: ${all.length} Spiele`);
-  return all;
-}
-
-// === Fallback: Football-Data ===
 async function fetchFromFootballData() {
-  if (!FOOTBALLDATA_KEY) return [];
-  console.log("⚽ Fallback: Football-Data.org ...");
+  if (!FOOTBALL_DATA_KEY) return [];
 
-  const headers = { "X-Auth-Token": FOOTBALLDATA_KEY };
-  const games = [];
-  const today = new Date();
-  const dateStr = today.toISOString().split("T")[0];
+  console.log("📡 Lade Spiele von Football-Data.org...");
 
-  for (const [leagueName, ids] of Object.entries(LEAGUES)) {
+  const LEAGUE_IDS = ["PL", "BL1", "PD", "SA", "FL1", "CL"];
+  const headers = { "X-Auth-Token": FOOTBALL_DATA_KEY };
+  const today = new Date().toISOString().split("T")[0];
+  const allGames = [];
+
+  for (const id of LEAGUE_IDS) {
     try {
-      const url = `https://api.football-data.org/v4/competitions/${ids.footballdata}/matches?status=SCHEDULED`;
+      const url = `https://api.football-data.org/v4/competitions/${id}/matches?status=SCHEDULED`;
       const res = await fetch(url, { headers });
       if (!res.ok) continue;
+
       const data = await res.json();
-      if (!data.matches) continue;
+      const matches = data.matches.filter((m) =>
+        m.utcDate.startsWith(today)
+      );
 
-      data.matches.forEach((m) => {
-        const matchDate = m.utcDate.split("T")[0];
-        if (matchDate !== dateStr) return;
-
-        const homeXG = +(0.8 + Math.random() * 1.6).toFixed(2);
-        const awayXG = +(0.6 + Math.random() * 1.6).toFixed(2);
-        const outcome = computeMatchOutcomeProbs(homeXG, awayXG);
+      for (const m of matches) {
+        const homeXG = randomXG();
+        const awayXG = randomXG();
+        const prob = computeMatchOutcomeProbs(homeXG, awayXG);
         const over25 = computeOver25Prob(homeXG, awayXG);
         const pHomeAtLeast1 = 1 - poisson(0, homeXG);
         const pAwayAtLeast1 = 1 - poisson(0, awayXG);
         const btts = +(pHomeAtLeast1 * pAwayAtLeast1).toFixed(4);
 
-        games.push({
+        allGames.push({
           id: m.id,
+          league: data.competition.name,
+          home: m.homeTeam?.name || "Heim",
+          away: m.awayTeam?.name || "Gast",
           date: m.utcDate,
-          league: leagueName,
-          home: m.homeTeam?.name || "Home",
-          away: m.awayTeam?.name || "Away",
           homeXG,
           awayXG,
-          prob: { ...outcome, over25 },
-          value: { ...outcome, over25 },
+          prob,
+          value: {
+            home: +(prob.home * 2 - 1).toFixed(4),
+            draw: +(prob.draw * 2 - 1).toFixed(4),
+            away: +(prob.away * 2 - 1).toFixed(4),
+            over25: +(over25 * 2 - 1).toFixed(4),
+          },
           btts,
-          trend: "neutral",
+          trend:
+            prob.home > prob.away
+              ? "home"
+              : prob.away > prob.home
+              ? "away"
+              : "draw",
         });
-      });
+      }
     } catch (err) {
-      console.log("⚠️ FootballData Fehler:", err.message);
+      console.error("⚠️ Fehler Football-Data:", id, err.message);
     }
   }
 
-  console.log(`✅ FootballData geladen: ${games.length} Spiele`);
-  return games;
+  return allGames;
 }
 
-// === API Endpoint ===
+// -------------------- Fetch: SoccerData --------------------
+
+async function fetchFromSoccerData() {
+  if (!SOCCERDATA_KEY) return [];
+  console.log("📡 Lade Spiele von SoccerData (Fallback)...");
+
+  const today = new Date().toISOString().split("T")[0];
+  const url = `https://app.sportdataapi.com/api/v1/soccer/fixtures?apikey=${SOCCERDATA_KEY}&date_from=${today}&date_to=${today}`;
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    console.error("⚠️ Fehler SoccerData:", res.statusText);
+    return [];
+  }
+
+  const data = await res.json();
+  if (!data?.data) return [];
+
+  return data.data.map((m) => {
+    const homeXG = randomXG();
+    const awayXG = randomXG();
+    const prob = computeMatchOutcomeProbs(homeXG, awayXG);
+    const over25 = computeOver25Prob(homeXG, awayXG);
+    const btts = +( (1 - poisson(0, homeXG)) * (1 - poisson(0, awayXG)) ).toFixed(4);
+
+    return {
+      id: m.match_id,
+      league: m.league?.name || "Unbekannte Liga",
+      home: m.home_team?.name || "Heim",
+      away: m.away_team?.name || "Gast",
+      date: m.match_start,
+      homeXG,
+      awayXG,
+      prob,
+      value: {
+        home: +(prob.home * 2 - 1).toFixed(4),
+        draw: +(prob.draw * 2 - 1).toFixed(4),
+        away: +(prob.away * 2 - 1).toFixed(4),
+        over25: +(over25 * 2 - 1).toFixed(4),
+      },
+      btts,
+      trend:
+        prob.home > prob.away
+          ? "home"
+          : prob.away > prob.home
+          ? "away"
+          : "draw",
+    };
+  });
+}
+
+// -------------------- API Route --------------------
+
 app.get("/api/games", async (req, res) => {
   try {
     const today = new Date().toISOString().split("T")[0];
     const now = Date.now();
-    const forceRefresh = req.query.refresh === "true";
+    const force = req.query.refresh === "true";
+    const cacheValid =
+      cache.date === today && now - cache.timestamp < CACHE_DURATION && !force;
 
-    const isCacheValid =
-      cache.date === today && !forceRefresh && now - cache.timestamp < CACHE_DURATION;
-
-    if (isCacheValid && cache.data.length) {
-      console.log("⚡ Spiele aus Cache geladen:", cache.data.length);
+    if (cacheValid) {
+      console.log("⚡ Spiele aus Cache:", cache.data.length);
       return res.json({ source: "cache", response: cache.data });
     }
 
-    console.log("🔄 Lade neue Spiele für Datum:", today);
-    let games = await fetchFromSoccerData();
-    if (!games.length) games = await fetchFromFootballData();
+    console.log("🔄 Lade neue Spiele für:", today);
+
+    let games = await fetchFromFootballData();
+    if (!games.length) {
+      console.log("⚠️ Football-Data leer, nutze SoccerData Fallback...");
+      games = await fetchFromSoccerData();
+    }
 
     cache = { timestamp: now, date: today, data: games };
-
     res.json({ source: "fresh", response: games });
   } catch (err) {
+    console.error("❌ Fehler /api/games:", err);
     res.status(500).json({ error: err.message, response: [] });
   }
 });
 
-// === Status-Check Endpoint ===
-app.get("/api/status", (req, res) => {
-  res.json({
-    date: cache.date,
-    last_update: new Date(cache.timestamp).toISOString(),
-    games_cached: cache.data.length,
-    cache_age_seconds: Math.round((Date.now() - cache.timestamp) / 1000),
-  });
+// -------------------- Frontend --------------------
+
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// === Serve Frontend ===
-app.get("*", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
-
-app.listen(PORT, () => console.log(`🚀 Server läuft auf Port ${PORT}`));
+app.listen(PORT, () =>
+  console.log(`✅ Server läuft auf Port ${PORT} (Hybrid-Modus aktiv)`)
+);
