@@ -7,6 +7,7 @@ const dateInput = document.getElementById("date");
 const leagueSelect = document.getElementById("league");
 const teamInput = document.getElementById("team");
 
+// Balken erstellen
 function createBar(label, value, color){
   const wrap = document.createElement("div");
   wrap.className = "bar-container";
@@ -20,16 +21,19 @@ function createBar(label, value, color){
   return wrap;
 }
 
+// Farbe nach Value/Trend
 function getTrafficColor(value, trend){
-  if(value > 0.15 && (trend === 'home' || trend === 'away')) return '#16a34a'; // stark grün
-  if(value > 0) return '#f59e0b'; // gelb
-  return '#ef4444'; // rot
+  if(value > 0.15 && (trend === 'home' || trend === 'away')) return '#16a34a';
+  if(value > 0) return '#f59e0b';
+  return '#ef4444';
 }
 
+// Spiele laden & anzeigen
 async function loadGames(){
   try {
     let url = "/api/games";
     if(dateInput.value) url += "?date=" + dateInput.value;
+
     const res = await fetch(url);
     const data = await res.json();
 
@@ -54,7 +58,7 @@ async function loadGames(){
     const topGames = games.slice(0,3);
     const otherGames = games.slice(3);
 
-    // Top3
+    // Top3 Spiele
     top3Div.innerHTML = "";
     topGames.forEach(g => {
       g.btts = g.btts ?? 0;
@@ -64,11 +68,11 @@ async function loadGames(){
       const bestVal = Math.max(g.value.home, g.value.draw, g.value.away);
       const color = getTrafficColor(bestVal, g.trend);
       div.style.borderLeft = `6px solid ${color}`;
-      div.innerHTML = `<div><strong>${g.home}</strong> vs <strong>${g.away}</strong> (${g.league}) - <span class="date">${dateObj.toLocaleString()}</span></div>
+      div.innerHTML = `
+        <div><strong>${g.home}</strong> vs <strong>${g.away}</strong> (${g.league}) - <span class="date">${dateObj.toLocaleString()}</span></div>
         <div class="team"><img src="${g.homeLogo}" alt=""> ${g.home} xG:${g.homeXG} | Trend:${g.trend}</div>
         <div class="team"><img src="${g.awayLogo}" alt=""> ${g.away} xG:${g.awayXG} | Trend:${g.trend}</div>
       `;
-      // Balken
       div.appendChild(createBar("Home", g.prob?.home ?? g.value.home, "#4caf50"));
       div.appendChild(createBar("Draw", g.prob?.draw ?? g.value.draw, "#f59e0b"));
       div.appendChild(createBar("Away", g.prob?.away ?? g.value.away, "#ef4444"));
@@ -114,7 +118,8 @@ async function loadGames(){
       const bestVal = Math.max(g.value.home, g.value.draw, g.value.away);
       const color = getTrafficColor(bestVal, g.trend);
       div.style.borderLeft = `6px solid ${color}`;
-      div.innerHTML = `<div><strong>${g.home}</strong> vs <strong>${g.away}</strong> (${g.league}) - <span class="date">${dateObj.toLocaleString()}</span></div>
+      div.innerHTML = `
+        <div><strong>${g.home}</strong> vs <strong>${g.away}</strong> (${g.league}) - <span class="date">${dateObj.toLocaleString()}</span></div>
         <div class="team"><img src="${g.homeLogo}" alt=""> ${g.home} xG:${g.homeXG} | Trend:${g.trend}</div>
         <div class="team"><img src="${g.awayLogo}" alt=""> ${g.away} xG:${g.awayXG} | Trend:${g.trend}</div>
       `;
