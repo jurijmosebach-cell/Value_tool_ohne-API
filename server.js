@@ -12,211 +12,129 @@ const app = express();
 app.use(express.static(__dirname));
 
 const PORT = process.env.PORT || 10000;
-const FOOTBALL_DATA_KEY = process.env.FOOTBALL_DATA_API_KEY || "";
-const SOCCERDATA_KEY = process.env.SOCCERDATA_API_KEY || "";
-const CACHE_DURATION = parseInt(process.env.CACHE_DURATION || "900000");
+const API_KEY = process.env.SOCCER_API_KEY || "";
 
-let cache = { timestamp: 0, date: "", data: [] };
+let cache = { timestamp: 0, date: null, data: [] };
+const CACHE_DURATION = 15 * 60 * 1000;
 
-// -------------------- Hilfsfunktionen --------------------
+// Beispielhafte Ligen (IDs je nach API ggf. anpassen)
+const LEAGUES = [195, 237, 244, 207, 216];
 
-function factorial(n) {
-  return n <= 1 ? 1 : n * factorial(n - 1);
-}
+// --- Utility Funktionen ---
+function factorial(n){ return n <= 1 ? 1 : n * factorial(n - 1); }
+function poisson(k, lambda){ return Math.pow(lambda, k) * Math.exp(-lambda) / factorial(k); }
 
-function poisson(k, lambda) {
-  return Math.pow(lambda, k) * Math.exp(-lambda) / factorial(k);
-}
-
-function computeMatchOutcomeProbs(homeLambda, awayLambda, maxGoals = 7) {
-  let homeProb = 0,
-    drawProb = 0,
-    awayProb = 0;
-  for (let i = 0; i <= maxGoals; i++) {
+function computeMatchOutcomeProbs(homeLambda, awayLambda){
+  let homeProb = 0, drawProb = 0, awayProb = 0;
+  for(let i=0;i<=7;i++){
     const pHome = poisson(i, homeLambda);
-    for (let j = 0; j <= maxGoals; j++) {
+    for(let j=0;j<=7;j++){
       const pAway = poisson(j, awayLambda);
       const p = pHome * pAway;
-      if (i > j) homeProb += p;
-      else if (i === j) drawProb += p;
+      if(i>j) homeProb += p;
+      else if(i===j) drawProb += p;
       else awayProb += p;
     }
   }
   const total = homeProb + drawProb + awayProb;
-  return {
-    home: +(homeProb / total).toFixed(4),
-    draw: +(drawProb / total).toFixed(4),
-    away: +(awayProb / total).toFixed(4),
-  };
+  return { home: +(homeProb/total).toFixed(4), draw: +(drawProb/total).toFixed(4), away: +(awayProb/total).toFixed(4) };
 }
 
-function computeOver25Prob(homeLambda, awayLambda, maxGoals = 7) {
+function computeOver25Prob(homeLambda, awayLambda){
   let pLe2 = 0;
-  for (let i = 0; i <= 2; i++) {
+  for(let i=0;i<=2;i++){
     const ph = poisson(i, homeLambda);
-    for (let j = 0; j <= 2; j++) {
-      if (i + j <= 2) pLe2 += ph * poisson(j, awayLambda);
+    for(let j=0;j<=2;j++){
+      if(i+j<=2) pLe2 += ph * poisson(j, awayLambda);
     }
   }
   return +(1 - pLe2).toFixed(4);
 }
 
-function randomXG(min = 0.6, max = 2.0) {
-  return +(min + Math.random() * (max - min)).toFixed(2);
-}
-
-// -------------------- Fetch: Football-Data --------------------
-
-async function fetchFromFootballData() {
-  if (!FOOTBALL_DATA_KEY) return [];
-
-  console.log("📡 Lade Spiele von Football-Data.org...");
-
-  const LEAGUE_IDS = ["PL", "BL1", "PD", "SA", "FL1", "CL"];
-  const headers = { "X-Auth-Token": FOOTBALL_DATA_KEY };
-  const today = new Date().toISOString().split("T")[0];
+// --- Spiele abrufen ---
+async function fetchGamesFromSoccerAPI(date){
   const allGames = [];
 
-  for (const id of LEAGUE_IDS) {
+  for(const leagueId of LEAGUES){
     try {
-      const url = `https://api.football-data.org/v4/competitions/${id}/matches?status=SCHEDULED`;
-      const res = await fetch(url, { headers });
-      if (!res.ok) continue;
-
+      const url = `https://app.sportdataapi.com/api/v1/soccer/matches?apikey=${API_KEY}&season_id=${leagueId}&date=${date}`;
+      const res = await fetch(url);
       const data = await res.json();
-      const matches = data.matches.filter((m) =>
-        m.utcDate.startsWith(today)
-      );
 
-      for (const m of matches) {
-        const homeXG = randomXG();
-        const awayXG = randomXG();
-        const prob = computeMatchOutcomeProbs(homeXG, awayXG);
+      if(!data || !data.data) continue;
+
+      data.data.forEach(m => {
+        const home = m.home_team?.name || "Home";
+        const away = m.away_team?.name || "Away";
+        const homeXG = +(0.8 + Math.random()*1.6).toFixed(2);
+        const awayXG = +(0.6 + Math.random()*1.6).toFixed(2);
+        const probs = computeMatchOutcomeProbs(homeXG, awayXG);
         const over25 = computeOver25Prob(homeXG, awayXG);
-        const pHomeAtLeast1 = 1 - poisson(0, homeXG);
-        const pAwayAtLeast1 = 1 - poisson(0, awayXG);
-        const btts = +(pHomeAtLeast1 * pAwayAtLeast1).toFixed(4);
+
+        const odds = {
+          home: +(1.6 + Math.random()*1.6).toFixed(2),
+          draw: +(2.0 + Math.random()*1.5).toFixed(2),
+          away: +(1.7 + Math.random()*1.6).toFixed(2),
+          over25: +(1.7 + Math.random()*0.7).toFixed(2),
+          under25: +(1.8 + Math.random()*0.7).toFixed(2)
+        };
+
+        const value = {
+          home: +((probs.home*odds.home)-1).toFixed(4),
+          draw: +((probs.draw*odds.draw)-1).toFixed(4),
+          away: +((probs.away*odds.away)-1).toFixed(4),
+          over25: +((over25*odds.over25)-1).toFixed(4),
+          under25: +(((1-over25)*odds.under25)-1).toFixed(4)
+        };
+
+        let trend = "neutral";
+        const mainVal = Math.max(value.home,value.draw,value.away);
+        if(mainVal>0.12 && probs.home>probs.away && probs.home>probs.draw) trend="home";
+        else if(mainVal>0.12 && probs.away>probs.home && probs.away>probs.draw) trend="away";
+        else if(Math.abs(probs.home-probs.away)<0.08 && probs.draw>=Math.max(probs.home,probs.away)) trend="draw";
 
         allGames.push({
-          id: m.id,
-          league: data.competition.name,
-          home: m.homeTeam?.name || "Heim",
-          away: m.awayTeam?.name || "Gast",
-          date: m.utcDate,
-          homeXG,
-          awayXG,
-          prob,
-          value: {
-            home: +(prob.home * 2 - 1).toFixed(4),
-            draw: +(prob.draw * 2 - 1).toFixed(4),
-            away: +(prob.away * 2 - 1).toFixed(4),
-            over25: +(over25 * 2 - 1).toFixed(4),
-          },
-          btts,
-          trend:
-            prob.home > prob.away
-              ? "home"
-              : prob.away > prob.home
-              ? "away"
-              : "draw",
+          id: m.match_id,
+          date: m.match_start,
+          league: m.league?.name || "Unbekannt",
+          home, away,
+          homeXG, awayXG,
+          prob: probs, value, trend
         });
-      }
+      });
     } catch (err) {
-      console.error("⚠️ Fehler Football-Data:", id, err.message);
+      console.error(`❌ Fehler beim Abrufen der Liga ${leagueId}:`, err.message);
     }
   }
 
+  allGames.sort((a,b) => new Date(a.date) - new Date(b.date));
   return allGames;
 }
 
-// -------------------- Fetch: SoccerData --------------------
-
-async function fetchFromSoccerData() {
-  if (!SOCCERDATA_KEY) return [];
-  console.log("📡 Lade Spiele von SoccerData (Fallback)...");
-
-  const today = new Date().toISOString().split("T")[0];
-  const url = `https://app.sportdataapi.com/api/v1/soccer/fixtures?apikey=${SOCCERDATA_KEY}&date_from=${today}&date_to=${today}`;
-  const res = await fetch(url);
-
-  if (!res.ok) {
-    console.error("⚠️ Fehler SoccerData:", res.statusText);
-    return [];
-  }
-
-  const data = await res.json();
-  if (!data?.data) return [];
-
-  return data.data.map((m) => {
-    const homeXG = randomXG();
-    const awayXG = randomXG();
-    const prob = computeMatchOutcomeProbs(homeXG, awayXG);
-    const over25 = computeOver25Prob(homeXG, awayXG);
-    const btts = +( (1 - poisson(0, homeXG)) * (1 - poisson(0, awayXG)) ).toFixed(4);
-
-    return {
-      id: m.match_id,
-      league: m.league?.name || "Unbekannte Liga",
-      home: m.home_team?.name || "Heim",
-      away: m.away_team?.name || "Gast",
-      date: m.match_start,
-      homeXG,
-      awayXG,
-      prob,
-      value: {
-        home: +(prob.home * 2 - 1).toFixed(4),
-        draw: +(prob.draw * 2 - 1).toFixed(4),
-        away: +(prob.away * 2 - 1).toFixed(4),
-        over25: +(over25 * 2 - 1).toFixed(4),
-      },
-      btts,
-      trend:
-        prob.home > prob.away
-          ? "home"
-          : prob.away > prob.home
-          ? "away"
-          : "draw",
-    };
-  });
-}
-
-// -------------------- API Route --------------------
-
+// --- API Route ---
 app.get("/api/games", async (req, res) => {
   try {
-    const today = new Date().toISOString().split("T")[0];
-    const now = Date.now();
+    const queryDate = req.query.date || new Date().toISOString().split("T")[0];
     const force = req.query.refresh === "true";
-    const cacheValid =
-      cache.date === today && now - cache.timestamp < CACHE_DURATION && !force;
+    const now = Date.now();
 
-    if (cacheValid) {
-      console.log("⚡ Spiele aus Cache:", cache.data.length);
-      return res.json({ source: "cache", response: cache.data });
+    const cacheValid = cache.date === queryDate && (now - cache.timestamp < CACHE_DURATION) && !force;
+    if(cacheValid) {
+      return res.json({ response: cache.data });
     }
 
-    console.log("🔄 Lade neue Spiele für:", today);
+    console.log("⏳ Lade neue Spiele für Datum:", queryDate);
+    const games = await fetchGamesFromSoccerAPI(queryDate);
+    cache = { timestamp: now, date: queryDate, data: games };
 
-    let games = await fetchFromFootballData();
-    if (!games.length) {
-      console.log("⚠️ Football-Data leer, nutze SoccerData Fallback...");
-      games = await fetchFromSoccerData();
-    }
-
-    cache = { timestamp: now, date: today, data: games };
-    res.json({ source: "fresh", response: games });
+    res.json({ response: games });
   } catch (err) {
-    console.error("❌ Fehler /api/games:", err);
-    res.status(500).json({ error: err.message, response: [] });
+    console.error("API Fehler:", err);
+    res.status(500).json({ response: [], error: err.message });
   }
 });
 
-// -------------------- Frontend --------------------
+// --- Serve Frontend ---
+app.get("*", (req,res)=>res.sendFile(path.join(__dirname,"index.html")));
 
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
-
-app.listen(PORT, () =>
-  console.log(`✅ Server läuft auf Port ${PORT} (Hybrid-Modus aktiv)`)
-);
+app.listen(PORT, ()=>console.log(`🚀 Server läuft auf Port ${PORT}`));
