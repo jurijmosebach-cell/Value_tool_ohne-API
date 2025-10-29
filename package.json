@@ -1,6 +1,6 @@
 {
   "name": "xg-value-tool",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "xG Value Dashboard mit SoccerData + Football-Data Fallback",
   "type": "module",
   "main": "server.js",
@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "express": "^4.19.2",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "dotenv": "^16.4.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.7"
