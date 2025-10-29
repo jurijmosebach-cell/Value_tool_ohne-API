@@ -16,11 +16,11 @@ const PORT = process.env.PORT || 10000;
 const FOOTBALLDATA_KEY = process.env.FOOTBALL_DATA_API_KEY || "";
 const SOCCERDATA_KEY = process.env.SOCCERDATA_API_KEY || "";
 
-// Cache für 15 Minuten
-let cache = { timestamp: 0, data: [] };
-const CACHE_DURATION = 15 * 60 * 1000;
+// 🧠 Cache-Struktur
+let cache = { timestamp: 0, date: null, data: [] };
+const CACHE_DURATION = Number(process.env.CACHE_DURATION) || 15 * 60 * 1000;
 
-// Ligen mit IDs für beide APIs
+// 🌍 Ligen mit IDs für beide APIs
 const LEAGUES = {
   "Premier League": { soccerdata: 237, footballdata: "PL" },
   "Bundesliga": { soccerdata: 195, footballdata: "BL1" },
@@ -88,7 +88,7 @@ function calculateTrend(matches) {
   return "neutral";
 }
 
-// === Fetch SoccerData (nur heutige Spiele) ===
+// === Fetch SoccerData (heutige Spiele) ===
 async function fetchFromSoccerData() {
   if (!SOCCERDATA_KEY) return [];
   console.log("📡 Lade Spiele von SoccerData...");
@@ -200,19 +200,38 @@ async function fetchFromFootballData() {
 // === API Endpoint ===
 app.get("/api/games", async (req, res) => {
   try {
+    const today = new Date().toISOString().split("T")[0];
     const now = Date.now();
-    if (!cache.data.length || now - cache.timestamp > CACHE_DURATION) {
-      console.log("🕒 Aktualisiere Cache...");
-      let games = await fetchFromSoccerData();
-      if (!games.length) games = await fetchFromFootballData();
-      cache = { timestamp: now, data: games };
+    const forceRefresh = req.query.refresh === "true";
+
+    const isCacheValid =
+      cache.date === today && !forceRefresh && now - cache.timestamp < CACHE_DURATION;
+
+    if (isCacheValid && cache.data.length) {
+      console.log("⚡ Spiele aus Cache geladen:", cache.data.length);
+      return res.json({ source: "cache", response: cache.data });
     }
 
-    const filtered = cache.data.slice();
-    res.json({ response: filtered });
+    console.log("🔄 Lade neue Spiele für Datum:", today);
+    let games = await fetchFromSoccerData();
+    if (!games.length) games = await fetchFromFootballData();
+
+    cache = { timestamp: now, date: today, data: games };
+
+    res.json({ source: "fresh", response: games });
   } catch (err) {
     res.status(500).json({ error: err.message, response: [] });
   }
+});
+
+// === Status-Check Endpoint ===
+app.get("/api/status", (req, res) => {
+  res.json({
+    date: cache.date,
+    last_update: new Date(cache.timestamp).toISOString(),
+    games_cached: cache.data.length,
+    cache_age_seconds: Math.round((Date.now() - cache.timestamp) / 1000),
+  });
 });
 
 // === Serve Frontend ===
