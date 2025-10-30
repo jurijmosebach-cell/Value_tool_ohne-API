@@ -6,104 +6,70 @@ import { fileURLToPath } from "url";
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 10000;
+const API_KEY = process.env.SPORTSAPI360_KEY;
 
 app.use(express.static("public"));
 
-const API_KEY = process.env.SPORTSAPI360_KEY;
-const BASE_URL = "https://api.sportsapi360.com/soccer";
-
-// Hilfsfunktion: API-Request
-async function getFromAPI(endpoint, params = {}) {
-  const url = new URL(`${BASE_URL}/${endpoint}`);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.append(k, v));
-
-  const res = await fetch(url, {
-    headers: {
-      "x-api-key": API_KEY,
-      accept: "application/json",
-    },
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("❌ API-Fehler:", text.slice(0, 200));
-    throw new Error(`API-Fehler: ${res.status}`);
-  }
-
-  const data = await res.json();
-  return data;
-}
-
-// 🔢 xG-basierte Value-Berechnung
-function calculateValue(homeXG, awayXG) {
-  const totalXG = homeXG + awayXG;
-  const homeProb = homeXG / totalXG;
-  const awayProb = awayXG / totalXG;
-  const drawProb = 1 - (homeProb + awayProb) / 2;
-
-  return {
-    home: homeProb,
-    draw: drawProb,
-    away: awayProb,
-    over25: totalXG / 3,
-    under25: 1 - totalXG / 3,
-  };
-}
-
-// 📅 Route: Spiele eines Datums abrufen
+// 🔹 API-Route für Spiele
 app.get("/api/games", async (req, res) => {
   try {
-    const date = req.query.date || new Date().toISOString().split("T")[0];
-    console.log(`📅 Lade Spiele für ${date}`);
+    const dateParam = req.query.date || new Date().toISOString().split("T")[0];
+    console.log(`📅 Lade Spiele für Datum: ${dateParam}`);
 
-    const apiData = await getFromAPI("fixtures", { date });
-
-    if (!apiData?.response || !Array.isArray(apiData.response))
-      return res.json({ response: [] });
-
-    const games = apiData.response.map((m) => {
-      const homeXG = m.stats?.home?.xG ?? Math.random() * 1.8 + 0.2;
-      const awayXG = m.stats?.away?.xG ?? Math.random() * 1.8 + 0.2;
-      const value = calculateValue(homeXG, awayXG);
-
-      return {
-        league: m.league?.name || "Unbekannt",
-        home: m.teams?.home?.name || "Heimteam",
-        away: m.teams?.away?.name || "Auswärtsteam",
-        date: m.fixture?.date || date,
-        homeLogo: m.teams?.home?.logo || "",
-        awayLogo: m.teams?.away?.logo || "",
-        homeXG,
-        awayXG,
-        trend:
-          homeXG > awayXG ? "home" : awayXG > homeXG ? "away" : "neutral",
-        prob: {
-          home: value.home,
-          draw: value.draw,
-          away: value.away,
-          over25: value.over25,
-        },
-        value,
-        btts: Math.min(1, (homeXG * awayXG) / 2),
-      };
+    const url = `https://sportsapi360.com/api/football/matches?date=${dateParam}`;
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${API_KEY}` },
     });
 
-    res.json({ response: games });
+    if (!response.ok) {
+      console.error(`❌ Fehler: ${response.status}`);
+      return res.status(500).json({ error: "Fehler beim Abrufen der Spiele" });
+    }
+
+    const data = await response.json();
+
+    // Wenn die API leeres oder unerwartetes Format liefert
+    if (!data || !Array.isArray(data.matches)) {
+      console.warn("⚠️ Keine oder ungültige Daten erhalten");
+      return res.json({ response: [] });
+    }
+
+    // 🔹 Spiele normalisieren
+    const formatted = data.matches.map(m => ({
+      date: m.utc_date,
+      league: m.league?.name || "Unbekannt",
+      home: m.home_team?.name,
+      away: m.away_team?.name,
+      homeLogo: m.home_team?.logo,
+      awayLogo: m.away_team?.logo,
+      value: {
+        home: m.probabilities?.home_win ?? 0,
+        draw: m.probabilities?.draw ?? 0,
+        away: m.probabilities?.away_win ?? 0,
+        over25: m.probabilities?.over_25 ?? 0,
+        under25: m.probabilities?.under_25 ?? 0
+      },
+      trend: m.stats?.momentum ?? "neutral",
+      homeXG: m.stats?.home_xg ?? 0,
+      awayXG: m.stats?.away_xg ?? 0,
+      btts: m.probabilities?.btts ?? 0
+    }));
+
+    res.json({ response: formatted });
   } catch (err) {
-    console.error("❌ Fehler beim Laden:", err.message);
-    res.status(500).json({ error: "Fehler beim Laden der Spiele" });
+    console.error("💥 Fehler:", err.message);
+    res.status(500).json({ error: "Interner Serverfehler" });
   }
 });
 
+// 🔹 Fallback für Frontend
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-app.listen(PORT, () =>
-  console.log(`🚀 Server läuft auf Port ${PORT} (SportsAPI360 aktiv)`)
-);
+app.listen(PORT, () => {
+  console.log(`🚀 Server läuft auf Port ${PORT} (SportsAPI360 aktiv)`);
+});
