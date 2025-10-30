@@ -1,76 +1,25 @@
 <!DOCTYPE html>
 <html lang="de">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>xG Value Dashboard</title>
-<link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <div class="container">
-    <header>
-      <h1>xG Value Dashboard</h1>
-      <p class="subtitle">Top 3, Top 7 Value, Top 5 Over — Datum / Liga / Team filtern</p>
-    </header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>XG Value Tool ⚽</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>XG Value Tool ⚽</h1>
 
     <div class="controls">
-      <label>Datum
-        <input type="date" id="date" />
-      </label>
-
-      <label>Liga
-        <select id="league">
-          <option value="">Alle</option>
-          <option>Premier League</option>
-          <option>Bundesliga</option>
-          <option>La Liga</option>
-          <option>Serie A</option>
-          <option>Ligue 1</option>
-          <option>Champions League</option>
-          <option>Eredivisie</option>
-          <option>Campeonato Brasileiro Série A</option>
-          <option>Primera Division</option>
-          <option>Championship</option>
-          <option>Primeira Liga</option>
-          <option>European Championship</option>
-        </select>
-      </label>
-
-      <label>Team
-        <input type="text" id="team" placeholder="Teamname" />
-      </label>
-
-      <button id="loadBtn">Spiele laden</button>
+      <input type="date" id="date" />
+      <button id="loadBtn">🔄 Spiele laden</button>
     </div>
 
-    <main>
-      <section>
-        <h2>Top 3 Spiele</h2>
-        <div id="top3" class="games"></div>
-      </section>
+    <h2>Top 3 Spiele</h2>
+    <div id="top3"></div>
 
-      <section class="two-column">
-        <div>
-          <h2>Top 7 Value</h2>
-          <div id="top7Value" class="list"></div>
-        </div>
-        <div>
-          <h2>Top 5 Over 2.5</h2>
-          <div id="top5Over25" class="list"></div>
-        </div>
-      </section>
+    <h2>Alle Spiele</h2>
+    <div id="games"></div>
 
-      <section>
-        <h2>Alle Spiele</h2>
-        <div id="games" class="games"></div>
-      </section>
-    </main>
-
-    <footer>
-      <small>Benötigt FOOTBALL_DATA_API_KEY in Render / Environment</small>
-    </footer>
-  </div>
-
-  <script src="app.js"></script>
-</body>
+    <script src="app.js"></script>
+  </body>
 </html>
