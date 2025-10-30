@@ -1,27 +1,17 @@
 {
   "name": "xg-value-tool",
-  "version": "1.1.0",
-  "description": "Präzises xG-Value- und Trendanalyse-Tool für Fußballwetten",
+  "version": "3.1.0",
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "build": "echo 'No build step required for Render'"
+    "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "node-fetch": "^3.3.2"
   },
   "engines": {
     "node": ">=18"
-  },
-  "keywords": [
-    "football",
-    "xg",
-    "betting",
-    "analysis",
-    "trend",
-    "value"
-  ],
-  "author": "Dein Name",
-  "license": "MIT"
+  }
 }
