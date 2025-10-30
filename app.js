@@ -1,4 +1,4 @@
-// ==== Elemente holen ====
+// ==== HTML-Elemente holen ====
 const top3Div = document.getElementById("top3");
 const top7ValueDiv = document.getElementById("top7Value");
 const top5OverDiv = document.getElementById("top5Over25");
@@ -29,65 +29,54 @@ function getTrafficColor(value, trend) {
   return "#ef4444";
 }
 
-// ==== Hauptfunktion: Spiele laden ====
+// ==== Spiele laden & anzeigen ====
 async function loadGames() {
   try {
-    gamesDiv.innerHTML = "<p>Lade Spiele...</p>";
-    top3Div.innerHTML = "";
-    top7ValueDiv.innerHTML = "";
-    top5OverDiv.innerHTML = "";
-
     let url = "/api/games";
     if (dateInput.value) url += `?date=${dateInput.value}`;
 
     const res = await fetch(url);
-    if (!res.ok) {
-      const err = await res.text();
-      console.error("API Fehler:", res.status, err);
-      gamesDiv.innerHTML = `<p>Fehler ${res.status}: API nicht erreichbar.</p>`;
-      return;
-    }
-
     const data = await res.json();
-    if (!data?.response?.length) {
-      gamesDiv.innerHTML = "<p>Keine Spiele gefunden.</p>";
+
+    if (!data || !Array.isArray(data.response)) {
+      gamesDiv.innerHTML = "<p>❌ Keine Daten erhalten.</p>";
       return;
     }
 
     let games = data.response.slice();
 
-    // Ligen dynamisch füllen
-    const leagues = [...new Set(games.map(g => g.league))].sort();
-    leagueSelect.innerHTML = '<option value="">Alle Ligen</option>' +
-      leagues.map(l => `<option value="${l}">${l}</option>`).join('');
-
-    // Filter
+    // Filter Liga
     if (leagueSelect.value) {
-      games = games.filter(g => g.league === leagueSelect.value);
+      games = games.filter((g) => g.league === leagueSelect.value);
     }
+
+    // Filter Team
     if (teamInput.value) {
       const q = teamInput.value.toLowerCase();
-      games = games.filter(g => g.home.toLowerCase().includes(q) || g.away.toLowerCase().includes(q));
+      games = games.filter(
+        (g) =>
+          g.home.toLowerCase().includes(q) || g.away.toLowerCase().includes(q)
+      );
     }
 
-    // Sortierung: höchster Value
-    games.sort((a, b) => Math.max(b.value.home, b.value.draw, b.value.away) - Math.max(a.value.home, a.value.draw, a.value.away));
+    // Sortieren nach Value
+    games.sort(
+      (a, b) =>
+        Math.max(b.value.home, b.value.draw, b.value.away) -
+        Math.max(a.value.home, a.value.draw, a.value.away)
+    );
 
-    // TOP 3
+    // === TOP 3 ===
     const top3 = games.slice(0, 3);
-    top3Div.innerHTML = "<h3>Top 3 Spiele</h3>";
-    top3.forEach(g => {
+    top3Div.innerHTML = "<h3>🏆 Top 3 Spiele</h3>";
+    top3.forEach((g) => {
       const div = document.createElement("div");
       div.className = "game top3";
-      const best = Math.max(g.value.home, g.value.draw, g.value.away);
-      div.style.borderLeft = `6px solid ${getTrafficColor(best, g.trend)}`;
+      const bestVal = Math.max(g.value.home, g.value.draw, g.value.away);
+      const color = getTrafficColor(bestVal, g.trend);
+      div.style.borderLeft = `6px solid ${color}`;
       div.innerHTML = `
-        <div>
-          ${g.homeLogo ? `<img src="${g.homeLogo}" width="20" style="vertical-align:middle">` : ''} 
-          <strong>${g.home}</strong> vs <strong>${g.away}</strong>
-          ${g.awayLogo ? `<img src="${g.awayLogo}" width="20" style="vertical-align:middle">` : ''}
-          <small>(${g.league})</small>
-        </div>
+        <div><strong>${g.home}</strong> vs <strong>${g.away}</strong> (${g.league})</div>
         <small>${new Date(g.date).toLocaleString()}</small>
       `;
       div.appendChild(createBar("Home", g.value.home, "#16a34a"));
@@ -98,43 +87,42 @@ async function loadGames() {
       top3Div.appendChild(div);
     });
 
-    // TOP 7 Value
+    // === TOP 7 Value ===
     const top7 = games.slice(0, 7);
-    top7ValueDiv.innerHTML = "<h3>Top 7 Value</h3>";
-    top7.forEach(g => {
-      const best = Math.max(g.value.home, g.value.draw, g.value.away);
+    top7ValueDiv.innerHTML = "<h3>💰 Top 7 Value</h3>";
+    top7.forEach((g) => {
+      const bestVal = Math.max(g.value.home, g.value.draw, g.value.away);
       const div = document.createElement("div");
       div.className = "game";
-      div.style.borderLeft = `6px solid ${getTrafficColor(best, g.trend)}`;
-      div.textContent = `${g.home} vs ${g.away} → ${(best * 100).toFixed(1)}% Value | ${g.trend.toUpperCase()}`;
+      div.style.borderLeft = `6px solid ${getTrafficColor(bestVal, g.trend)}`;
+      div.textContent = `${g.home} vs ${g.away} (${g.league}) → Value ${(bestVal * 100).toFixed(1)}% | Trend: ${g.trend}`;
       top7ValueDiv.appendChild(div);
     });
 
-    // TOP 5 Over 2.5
-    const top5Over = games.slice().sort((a, b) => b.value.over25 - a.value.over25).slice(0, 5);
-    top5OverDiv.innerHTML = "<h3>Top 5 Over 2.5</h3>";
-    top5Over.forEach(g => {
+    // === TOP 5 Over 2.5 ===
+    const top5Over = games
+      .slice()
+      .sort((a, b) => b.value.over25 - a.value.over25)
+      .slice(0, 5);
+    top5OverDiv.innerHTML = "<h3>⚽ Top 5 Over 2.5</h3>";
+    top5Over.forEach((g) => {
       const div = document.createElement("div");
       div.className = "game";
       div.style.borderLeft = "6px solid #2196f3";
-      div.textContent = `${g.home} vs ${g.away} → ${(g.value.over25 * 100).toFixed(1)}% Over 2.5`;
+      div.textContent = `${g.home} vs ${g.away} (${g.league}) → ${(g.value.over25 * 100).toFixed(1)}% Over 2.5`;
       top5OverDiv.appendChild(div);
     });
 
-    // Alle Spiele
-    gamesDiv.innerHTML = `<h3>Alle Spiele (${games.length})</h3>`;
-    games.forEach(g => {
+    // === Alle anderen Spiele ===
+    gamesDiv.innerHTML = "<h3>📋 Alle Spiele</h3>";
+    games.forEach((g) => {
       const div = document.createElement("div");
       div.className = "game";
-      const best = Math.max(g.value.home, g.value.draw, g.value.away);
-      div.style.borderLeft = `6px solid ${getTrafficColor(best, g.trend)}`;
+      const bestVal = Math.max(g.value.home, g.value.draw, g.value.away);
+      const color = getTrafficColor(bestVal, g.trend);
+      div.style.borderLeft = `6px solid ${color}`;
       div.innerHTML = `
-        <div>
-          ${g.homeLogo ? `<img src="${g.homeLogo}" width="20" style="vertical-align:middle">` : ''} 
-          <strong>${g.home}</strong> vs <strong>${g.away}</strong>
-          ${g.awayLogo ? `<img src="${g.awayLogo}" width="20" style="vertical-align:middle">` : ''}
-          <small>(${g.league})</small>
-        </div>
+        <div><strong>${g.home}</strong> vs <strong>${g.away}</strong> (${g.league})</div>
         <small>${new Date(g.date).toLocaleString()}</small>
       `;
       div.appendChild(createBar("Home", g.value.home, "#16a34a"));
@@ -145,13 +133,11 @@ async function loadGames() {
       div.appendChild(createBar("BTTS", g.btts ?? 0, "#ff7a00"));
       gamesDiv.appendChild(div);
     });
-
   } catch (err) {
-    console.error("Fehler:", err);
-    gamesDiv.innerHTML = `<p>Fehler: ${err.message}</p>`;
+    console.error("Fehler beim Laden:", err);
+    gamesDiv.innerHTML = `<p>❌ Fehler beim Laden der Spiele. (${err.message})</p>`;
   }
 }
 
-// ==== Events ====
 loadBtn.addEventListener("click", loadGames);
 window.addEventListener("load", loadGames);
