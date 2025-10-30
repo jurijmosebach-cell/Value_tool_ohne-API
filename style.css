@@ -1,62 +1,39 @@
 body {
-  font-family: Arial, sans-serif;
-  background: #0f172a;
-  color: #f8fafc;
+  font-family: system-ui, sans-serif;
+  background: #111;
+  color: #eee;
   margin: 0;
   padding: 0;
 }
 
 header {
-  background: #1e293b;
-  padding: 1rem;
-  text-align: center;
-}
-
-h1 {
-  margin: 0 0 0.5rem 0;
-  color: #38bdf8;
-}
-
-.controls {
+  background: #222;
+  padding: 10px;
   display: flex;
-  justify-content: center;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: center;
 }
 
-button {
-  background: #38bdf8;
-  border: none;
-  padding: 0.5rem 1rem;
-  color: white;
-  font-weight: bold;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-section {
-  margin: 2rem;
-  background: #1e293b;
-  padding: 1rem;
-  border-radius: 10px;
+.controls input, .controls button {
+  margin: 5px;
+  padding: 5px 10px;
 }
 
 .game {
-  border-left: 6px solid #38bdf8;
-  padding: 0.5rem 1rem;
-  margin-bottom: 1rem;
-  background: #334155;
-  border-radius: 6px;
+  border-left: 6px solid #444;
+  padding: 10px;
+  margin: 8px;
+  background: #1b1b1b;
+  border-radius: 8px;
 }
 
 .bar-container {
-  margin: 2px 0;
-  background: #475569;
-  border-radius: 4px;
-  overflow: hidden;
+  margin: 4px 0;
 }
 
 .bar {
+  padding: 2px 6px;
+  border-radius: 6px;
   color: #fff;
-  font-size: 0.8rem;
-  padding: 2px 4px;
+  font-size: 0.85rem;
 }
