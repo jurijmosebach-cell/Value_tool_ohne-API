@@ -1,25 +1,43 @@
 <!DOCTYPE html>
 <html lang="de">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>XG Value Tool ⚽</title>
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <h1>XG Value Tool ⚽</h1>
-
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XG Value Tool ⚽</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>XG Value Tool</h1>
     <div class="controls">
-      <input type="date" id="date" />
+      <input type="date" id="date">
+      <input type="text" id="team" placeholder="Team suchen...">
       <button id="loadBtn">🔄 Spiele laden</button>
     </div>
+  </header>
 
-    <h2>Top 3 Spiele</h2>
-    <div id="top3"></div>
+  <main>
+    <section>
+      <h2>🔥 Top 3 Spiele</h2>
+      <div id="top3"></div>
+    </section>
 
-    <h2>Alle Spiele</h2>
-    <div id="games"></div>
+    <section>
+      <h2>💰 Top 7 Value Spiele</h2>
+      <div id="top7Value"></div>
+    </section>
 
-    <script src="app.js"></script>
-  </body>
+    <section>
+      <h2>⚡ Über 2.5 Tore</h2>
+      <div id="top5Over25"></div>
+    </section>
+
+    <section>
+      <h2>📋 Alle Spiele</h2>
+      <div id="games"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
 </html>
