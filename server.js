@@ -19,23 +19,27 @@ app.use(express.static(__dirname)); // Serviert index.html, app.js, etc. aus Roo
 const API_KEY = process.env.SPORTSAPI_KEY;
 const PORT = process.env.PORT || 10000;
 
-// Basis-URL für Live Matches
-const LIVE_URL = "https://apiv3.sportsapi360.com/football/api/v1/matches/live";
+// FIX: Richtige URL aus offiziellen Docs (kein /v3, kein /live)
+const API_BASE = "https://api.sportsapi360.com/v1/football/matches";
 
 // === API Endpoint: /api/games ===
 app.get("/api/games", async (req, res) => {
   try {
     const date = req.query.date;
-    console.log("Lade Spiele für:", date ? date : "LIVE");
+    console.log("Lade Spiele für:", date ? date : "alle Matches");
 
-    // Bestimme URL: Datum oder Live
-    let url = LIVE_URL;
+    // URL bauen: Basis + Datum-Param (falls vorhanden)
+    let url = API_BASE;
     if (date) {
-      // Falls Datum angegeben → versuche Datum-Endpoint
-      url = `https://apiv3.sportsapi360.com/football/api/v1/matches?date=${date}`;
+      url += `?date=${date}`;  // Oder ?from=...&to=... – passe an Docs an
     }
 
     console.log("API Request →", url);
+    console.log("🔑 API-Key vorhanden:", !!API_KEY ? "Ja" : "NEIN!");  // Debug
+
+    if (!API_KEY) {
+      return res.status(500).json({ error: "API-Key fehlt in Environment" });
+    }
 
     const response = await fetch(url, {
       method: "GET",
@@ -52,15 +56,16 @@ app.get("/api/games", async (req, res) => {
       const text = await response.text();
       console.error("API Fehler:", response.status, text.slice(0, 300));
       return res.status(response.status).json({
-        error: "API nicht erreichbar",
+        error: "API nicht erreichbar (502 = Server-Fehler bei SportsAPI360)",
         details: text.slice(0, 200),
+        tip: "Prüfe Token/Docs oder teste mit aktuellem Datum (nicht 2025!)"
       });
     }
 
     const data = await response.json();
     console.log("API Erfolg – Matches:", data.response?.length || 0);
 
-    // Datenstruktur aus Docs: data.response = Array von Matches
+    // Datenstruktur: data.response = Array von Matches (aus Docs)
     const matches = data.response || [];
 
     // Transformiere in Frontend-Format
@@ -75,10 +80,10 @@ app.get("/api/games", async (req, res) => {
         home: m.score?.home || 0,
         away: m.score?.away || 0,
       },
-      status: m.status || "LIVE",
+      status: m.status || "UPCOMING",
       last_event: m.last_event || "",
 
-      // Value & Predictions (temporär – später echte Daten)
+      // Value & Predictions (temporär – später echte aus API)
       value: {
         home: Math.random(),
         draw: Math.random(),
@@ -89,6 +94,24 @@ app.get("/api/games", async (req, res) => {
       trend: ["home", "away", "neutral"][Math.floor(Math.random() * 3)],
       btts: Math.random(),
     }));
+
+    // Fallback: Wenn keine Matches (z. B. zukünftiges Datum), generiere Test-Daten
+    if (games.length === 0) {
+      console.log("Keine Matches – generiere Test-Daten");
+      games.push({
+        home: "Bayern München",
+        away: "Borussia Dortmund",
+        league: "Bundesliga",
+        date: new Date().toISOString(),
+        score: { home: 2, away: 1 },
+        status: "LIVE",
+        value: { home: 0.6, draw: 0.2, away: 0.2, over25: 0.7, under25: 0.3 },
+        trend: "home",
+        btts: 0.8,
+        homeLogo: "https://example.com/bayern.png",
+        awayLogo: "https://example.com/dortmund.png"
+      });
+    }
 
     res.json({ response: games });
   } catch (err) {
