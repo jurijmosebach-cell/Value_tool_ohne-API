@@ -1,62 +1,127 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>XG Value Tool – SportsAPI360</title>
-<style>
-  body{font-family:Inter,system-ui,Arial;background:#0f172a;color:#f8fafc;margin:0;padding:0}
-  header{background:#111827;padding:12px 18px;display:flex;align-items:center;justify-content:space-between}
-  h1{color:#38bdf8;margin:0;font-size:1.2rem}
-  .controls{display:flex;gap:8px;align-items:center}
-  input,select,button{padding:8px;border-radius:8px;border:none;background:#1f2937;color:#e6eef7}
-  button{cursor:pointer}
-  main{padding:18px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  section{background:#111827;padding:12px;border-radius:10px}
-  .games{display:flex;flex-direction:column;gap:8px}
-  .game{background:#0b1220;padding:10px;border-radius:8px;border-left:6px solid #334155}
-  .top3 .game{font-weight:700;border-left-width:8px}
-  .bar-container{background:#0f1726;border-radius:8px;overflow:hidden;margin-top:8px;height:14px}
-  .bar{height:100%;display:flex;align-items:center;padding-left:8px;color:#fff;font-weight:700;font-size:12px}
-  img{width:20px;height:14px;object-fit:cover;margin-right:8px;vertical-align:middle}
-  @media(max-width:900px){main{grid-template-columns:1fr}}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>⚽ XG & Value Tool – SportsAPI360</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 1rem;
+      background: #f9fafb;
+      color: #111;
+    }
+
+    h1, h3 {
+      text-align: center;
+    }
+
+    header {
+      background: #1e3a8a;
+      color: white;
+      padding: 1rem;
+      border-radius: .5rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: .5rem;
+      margin-bottom: 1rem;
+    }
+
+    input, select, button {
+      padding: .5rem .75rem;
+      border: 1px solid #ccc;
+      border-radius: .375rem;
+      font-size: 1rem;
+    }
+
+    button {
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+      transition: background .2s;
+    }
+
+    button:hover {
+      background: #1e40af;
+    }
+
+    .section {
+      background: #fff;
+      border-radius: .5rem;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .game {
+      background: #fefefe;
+      border-radius: .5rem;
+      padding: .75rem;
+      margin: .5rem 0;
+      border-left: 6px solid #e5e7eb;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .bar-container {
+      background: #e5e7eb;
+      border-radius: .25rem;
+      margin: .25rem 0;
+      overflow: hidden;
+    }
+
+    .bar {
+      color: white;
+      padding-left: .5rem;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      font-size: .85rem;
+    }
+
+    footer {
+      text-align: center;
+      color: #6b7280;
+      margin-top: 2rem;
+      font-size: .8rem;
+    }
+  </style>
 </head>
 <body>
   <header>
-    <h1>⚽ XG Value Tool – SportsAPI360</h1>
-    <div class="controls">
-      <input type="date" id="date" />
-      <select id="league">
-        <option value="">Alle Ligen</option>
-      </select>
-      <input type="text" id="team" placeholder="Team" />
-      <button id="loadBtn">Spiele laden</button>
-      <button id="liveBtn" style="background:#22c55e;color:#062018">Live</button>
-    </div>
+    <h1>⚽ XG & Value Tool</h1>
+    <p><small>SportsAPI360 Integration – aktuelle Spiele & Prognosen</small></p>
   </header>
 
-  <main>
-    <section>
-      <h2>🔥 Top 3 Spiele</h2>
-      <div id="top3" class="games top3"></div>
-      <h2 style="margin-top:12px">💰 Top 7 Value</h2>
-      <div id="top7Value" class="games"></div>
-    </section>
+  <section id="controls">
+    <input type="date" id="date" />
+    <select id="league">
+      <option value="">🌍 Alle Ligen</option>
+      <option value="Premier League">Premier League</option>
+      <option value="Bundesliga">Bundesliga</option>
+      <option value="La Liga">La Liga</option>
+      <option value="Serie A">Serie A</option>
+      <option value="Ligue 1">Ligue 1</option>
+      <option value="Champions League">Champions League</option>
+    </select>
+    <input type="text" id="team" placeholder="🔍 Team suchen..." />
+    <button id="loadBtn">🔄 Spiele laden</button>
+  </section>
 
-    <section>
-      <h2>⚡ Top 5 Over 2.5</h2>
-      <div id="top5Over25" class="games"></div>
-      <h2 style="margin-top:12px">📋 Alle Spiele</h2>
-      <div id="games" class="games"></div>
-    </section>
+  <section id="top3" class="section"></section>
+  <section id="top7Value" class="section"></section>
+  <section id="top5Over25" class="section"></section>
+  <section id="games" class="section"></section>
 
-    <section style="grid-column:1 / -1">
-      <h2>🟢 Live Spiele</h2>
-      <div id="liveGames" class="games"></div>
-    </section>
-  </main>
+  <footer>
+    © 2025 XG-Value-Tool | Powered by SportsAPI360
+  </footer>
 
-<script src="./app.js"></script>
+  <script src="./app.js"></script>
 </body>
 </html>
