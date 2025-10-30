@@ -1,27 +1,15 @@
 {
-  "name": "betting-performance",
-  "version": "1.0.0",
-  "description": "Soccer Value Tool mit API-Integration",
+  "name": "xg-value-tool",
+  "version": "3.6.0",
+  "description": "Value Tool mit SportsAPI360 Integration",
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "start": "node server.js"
   },
-  "keywords": [
-    "soccer",
-    "football",
-    "api",
-    "value-betting",
-    "express"
-  ],
-  "author": "Dein Name",
-  "license": "MIT",
   "dependencies": {
     "express": "^4.19.2",
+    "node-fetch": "^3.3.2",
     "cors": "^2.8.5"
-  },
-  "engines": {
-    "node": ">=18.0.0"
   }
 }
