@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>XG & Value Tool – SportsAPI360</title>
+  <title>⚽ XG & Value Tool – SportsAPI360</title>
   <style>
     body {
       font-family: system-ui, sans-serif;
@@ -11,7 +11,11 @@
       background: #f9fafb;
       color: #111;
     }
-    h1, h3 { text-align: center; }
+
+    h1, h3 {
+      text-align: center;
+    }
+
     header {
       background: #1e3a8a;
       color: white;
@@ -20,6 +24,7 @@
       text-align: center;
       margin-bottom: 1.5rem;
     }
+
     #controls {
       display: flex;
       flex-wrap: wrap;
@@ -27,18 +32,25 @@
       gap: .5rem;
       margin-bottom: 1rem;
     }
+
     input, select, button {
       padding: .5rem .75rem;
       border: 1px solid #ccc;
       border-radius: .375rem;
       font-size: 1rem;
     }
+
     button {
       background: #2563eb;
       color: white;
       cursor: pointer;
+      transition: background .2s;
     }
-    button:hover { background: #1e40af; }
+
+    button:hover {
+      background: #1e40af;
+    }
+
     .section {
       background: #fff;
       border-radius: .5rem;
@@ -46,6 +58,7 @@
       margin-bottom: 1rem;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
+
     .game {
       background: #fefefe;
       border-radius: .5rem;
@@ -54,12 +67,14 @@
       border-left: 6px solid #e5e7eb;
       box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
+
     .bar-container {
       background: #e5e7eb;
       border-radius: .25rem;
       margin: .25rem 0;
       overflow: hidden;
     }
+
     .bar {
       color: white;
       padding-left: .5rem;
@@ -68,6 +83,7 @@
       align-items: center;
       font-size: .85rem;
     }
+
     footer {
       text-align: center;
       color: #6b7280;
@@ -78,17 +94,23 @@
 </head>
 <body>
   <header>
-    <h1>XG & Value Tool</h1>
+    <h1>⚽ XG & Value Tool</h1>
     <p><small>SportsAPI360 Integration – aktuelle Spiele & Prognosen</small></p>
   </header>
 
   <section id="controls">
     <input type="date" id="date" />
     <select id="league">
-      <option value="">Alle Ligen</option>
+      <option value="">🌍 Alle Ligen</option>
+      <option value="Premier League">Premier League</option>
+      <option value="Bundesliga">Bundesliga</option>
+      <option value="La Liga">La Liga</option>
+      <option value="Serie A">Serie A</option>
+      <option value="Ligue 1">Ligue 1</option>
+      <option value="Champions League">Champions League</option>
     </select>
-    <input type="text" id="team" placeholder="Team suchen..." />
-    <button id="loadBtn">Spiele laden</button>
+    <input type="text" id="team" placeholder="🔍 Team suchen..." />
+    <button id="loadBtn">🔄 Spiele laden</button>
   </section>
 
   <section id="top3" class="section"></section>
