@@ -1,101 +1,78 @@
 import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
-import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
-
 const app = express();
-app.use(cors());
-app.use(express.json());
-
 const PORT = process.env.PORT || 10000;
 const API_KEY = process.env.SPORTSAPI360_KEY;
 
-// Test-Log beim Start
-console.log(`🚀 Server läuft auf Port ${PORT} (SportsAPI360 aktiv)`);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// 🧠 Hilfsfunktion: Spiele für bestimmtes Datum abrufen
-async function ladeSpiele(datum = null) {
-  try {
-    const today = datum || new Date().toISOString().split("T")[0];
+let cache = {};
+const CACHE_TIME = 5 * 60 * 1000; // 5 Minuten
 
-    console.log(`⏳ Lade Spiele von SportsAPI360 für Datum: ${today}`);
+app.use(express.json());
+app.use(express.static(__dirname));
 
-    const leagues = [
-      195, // Premier League
-      207, // Bundesliga
-      216, // Serie A
-      237, // La Liga
-      244, // Ligue 1
-    ];
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
-    const spiele = [];
-
-    for (const liga of leagues) {
-      const url = `https://sportsapi360.com/api/v1/football/fixtures?league_id=${liga}&date=${today}`;
-      const res = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${API_KEY}`,
-          Accept: "application/json",
-        },
-      });
-
-      if (!res.ok) {
-        console.error(`❌ Fehler bei Liga ${liga}: ${res.status}`);
-        continue;
-      }
-
-      const json = await res.json();
-      if (!json || !json.data) {
-        console.error(`❌ Keine gültigen Daten für Liga ${liga}`);
-        continue;
-      }
-
-      for (const m of json.data) {
-        spiele.push({
-          id: m.id,
-          league: m.league?.name || "Unbekannt",
-          date: m.date,
-          home: m.home_team?.name || "Heim",
-          away: m.away_team?.name || "Auswärts",
-          homeLogo: m.home_team?.logo || "",
-          awayLogo: m.away_team?.logo || "",
-          value: {
-            home: Math.random().toFixed(2),
-            draw: Math.random().toFixed(2),
-            away: Math.random().toFixed(2),
-            over25: Math.random().toFixed(2),
-            under25: Math.random().toFixed(2),
-          },
-          trend: ["home", "draw", "away"][Math.floor(Math.random() * 3)],
-          btts: Math.random().toFixed(2),
-          homeXG: (Math.random() * 2).toFixed(2),
-          awayXG: (Math.random() * 2).toFixed(2),
-        });
-      }
-    }
-
-    return spiele;
-  } catch (err) {
-    console.error("❌ Fehler beim Laden der Spiele:", err);
-    return [];
-  }
+async function fetchMatches(url) {
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${API_KEY}` } });
+  if (!res.ok) throw new Error(`API Fehler ${res.status}`);
+  const data = await res.json();
+  return data?.data || [];
 }
 
-// 🧩 API-Endpoint
+function mapMatch(m, date) {
+  return {
+    id: m.id,
+    league: m.league?.name || "Unbekannt",
+    home: m.home_team?.name || "Heim",
+    away: m.away_team?.name || "Gast",
+    homeLogo: m.home_team?.logo || "",
+    awayLogo: m.away_team?.logo || "",
+    date: m.date || date,
+    score: m.score || null,
+    minute: m.minute || null,
+    homeXG: m.stats?.home_xg ?? (Math.random() * 1.5 + 0.5).toFixed(2),
+    awayXG: m.stats?.away_xg ?? (Math.random() * 1.5 + 0.5).toFixed(2),
+  };
+}
+
+// 📅 Spiele nach Datum
 app.get("/api/games", async (req, res) => {
-  const datum = req.query.date || null;
-  const spiele = await ladeSpiele(datum);
-  res.json({ response: spiele });
+  const date = req.query.date || new Date().toISOString().split("T")[0];
+  const key = `games-${date}`;
+  if (cache[key] && Date.now() - cache[key].time < CACHE_TIME) {
+    return res.json(cache[key].data);
+  }
+  try {
+    console.log(`📅 Lade Spiele für ${date}`);
+    const matches = await fetchMatches(`https://sportsapi360.com/api/soccer/matches?date=${date}`);
+    const response = { response: matches.map(m => mapMatch(m, date)) };
+    cache[key] = { time: Date.now(), data: response };
+    res.json(response);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Fehler beim Abrufen der Spiele" });
+  }
 });
 
-// 🧩 Root-Route (statt public/index.html)
-app.get("/", (req, res) => {
-  res.send("🚀 SportsAPI360-Backend aktiv! Verwende /api/games für aktuelle Spiele.");
+// 🟢 Live Spiele
+app.get("/api/live", async (_req, res) => {
+  try {
+    console.log("📺 Lade Live-Spiele");
+    const matches = await fetchMatches("https://sportsapi360.com/api/soccer/matches?live=1");
+    const response = { response: matches.map(m => mapMatch(m, new Date().toISOString().split("T")[0])) };
+    res.json(response);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Fehler beim Abrufen der Live-Spiele" });
+  }
 });
 
-// 🧩 Serverstart
-app.listen(PORT, () => {
-  console.log(`✅ Backend läuft unter Port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Server läuft auf Port ${PORT} (SportsAPI360 aktiv)`));
