@@ -38,8 +38,8 @@ async function loadGames() {
     const res = await fetch(url);
     const data = await res.json();
 
-    if (!data || !Array.isArray(data.response)) {
-      gamesDiv.innerHTML = "<p>❌ Keine Daten erhalten.</p>";
+    if (!data || !Array.isArray(data.response) || data.response.length === 0) {
+      gamesDiv.innerHTML = "<p>❌ Keine Spiele gefunden.</p>";
       return;
     }
 
@@ -57,14 +57,6 @@ async function loadGames() {
         (g) =>
           g.home.toLowerCase().includes(q) || g.away.toLowerCase().includes(q)
       );
-    }
-
-    if (!games.length) {
-      gamesDiv.innerHTML = "<p>⚠️ Keine Spiele gefunden.</p>";
-      top3Div.innerHTML = "";
-      top7ValueDiv.innerHTML = "";
-      top5OverDiv.innerHTML = "";
-      return;
     }
 
     // Sortieren nach Value
@@ -121,7 +113,7 @@ async function loadGames() {
       top5OverDiv.appendChild(div);
     });
 
-    // === Alle anderen Spiele ===
+    // === Alle Spiele ===
     gamesDiv.innerHTML = "<h3>📋 Alle Spiele</h3>";
     games.forEach((g) => {
       const div = document.createElement("div");
@@ -147,6 +139,5 @@ async function loadGames() {
   }
 }
 
-// Event-Listener
 loadBtn.addEventListener("click", loadGames);
 window.addEventListener("load", loadGames);
