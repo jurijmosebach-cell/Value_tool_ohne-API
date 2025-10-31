@@ -1,75 +1,44 @@
 import express from "express";
 import fetch from "node-fetch";
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const API_URL = "https://apiv3.sportsapi360.com/football/api/v1";
 const API_KEY = process.env.SPORTSAPI_KEY;
 const PORT = process.env.PORT || 10000;
 
-// === Fallback-Daten für Demo-Zwecke ===
-const fallbackGames = [
-  {
-    home: "Team A",
-    away: "Team B",
-    league: "Demo Liga",
-    date: new Date().toISOString(),
-    homeLogo: "",
-    awayLogo: "",
-    value: {
-      home: 0.5,
-      draw: 0.3,
-      away: 0.2,
-      over25: 0.6,
-      under25: 0.4
-    },
-    trend: "home",
-    btts: 0.7
-  },
-  {
-    home: "Team C",
-    away: "Team D",
-    league: "Demo Liga",
-    date: new Date().toISOString(),
-    homeLogo: "",
-    awayLogo: "",
-    value: {
-      home: 0.4,
-      draw: 0.35,
-      away: 0.25,
-      over25: 0.5,
-      under25: 0.5
-    },
-    trend: "away",
-    btts: 0.6
-  }
-];
-
+// === Spiele laden ===
 app.get("/api/games", async (req, res) => {
-  const date = req.query.date || new Date().toISOString().slice(0, 10);
-  console.log("📅 Lade Spiele für", date);
-
   try {
+    const date = req.query.date || new Date().toISOString().slice(0, 10);
+    console.log("📅 Lade Spiele für", date);
+
     const response = await fetch(`${API_URL}/matches/live`, {
-      headers: { "x-app-key": API_KEY }
+      headers: { "x-app-key": API_KEY },
     });
 
     if (!response.ok) {
-      throw new Error(`API antwortet mit Status ${response.status}`);
+      const text = await response.text();
+      console.error("❌ Fehler /api/games:", response.status, response.statusText, "-", text.slice(0, 200));
+      return res.status(response.status).json({ error: "API Fehler", details: text });
     }
 
     const data = await response.json();
     const matches = data?.response || [];
 
-    // Spiele anpassen
-    const games = matches.map(m => ({
+    const games = matches.map((m) => ({
       home: m.home_team?.name || "Unbekannt",
       away: m.away_team?.name || "Unbekannt",
       league: m.league?.name || "Unbekannte Liga",
-      date: m.fixture?.date || new Date().toISOString(),
+      date: m.fixture?.date || new Date(),
       homeLogo: m.home_team?.logo || "",
       awayLogo: m.away_team?.logo || "",
       value: {
@@ -77,26 +46,24 @@ app.get("/api/games", async (req, res) => {
         draw: m.probabilities?.draw || 0,
         away: m.probabilities?.away_win || 0,
         over25: m.probabilities?.over_2_5 || 0,
-        under25: 1 - (m.probabilities?.over_2_5 || 0)
+        under25: 1 - (m.probabilities?.over_2_5 || 0),
       },
       trend: m.trend || "neutral",
-      btts: m.probabilities?.btts || 0
+      btts: m.probabilities?.btts || 0,
     }));
 
-    res.json({ response: games, fallback: false });
+    res.json({ response: games });
   } catch (err) {
-    console.error("❌ API nicht erreichbar, Fallback-Daten werden genutzt:", err.message);
-    res.json({ response: fallbackGames, fallback: true });
+    console.error("❌ Server Fehler /api/games:", err);
+    res.status(500).json({ error: "Serverfehler", details: err.message });
   }
 });
 
-app.get("/", (req, res) => {
-  res.send(`
-    <h1>⚽ Value Tool Backend</h1>
-    <p>Das Backend läuft. <a href="/api/games">API testen</a></p>
-  `);
-});
+// === HTML, JS, CSS direkt ausliefern ===
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
+app.get("/app.js", (req, res) => res.sendFile(path.join(__dirname, "app.js")));
+app.get("/style.css", (req, res) => res.sendFile(path.join(__dirname, "style.css")));
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server läuft auf Port ${PORT} (SportsAPI360 aktiv)`);
+  console.log(`🚀 Server läuft auf Port ${PORT} (Frontend + API bereit)`);
 });
