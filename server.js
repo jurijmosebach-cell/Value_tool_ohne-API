@@ -10,7 +10,7 @@ const API_URL = "https://apiv3.sportsapi360.com/football/api/v1";
 const API_KEY = process.env.SPORTSAPI_KEY;
 const PORT = process.env.PORT || 10000;
 
-// === Fallback-Daten, falls API nicht erreichbar ===
+// === Fallback-Daten für Demo-Zwecke ===
 const fallbackGames = [
   {
     home: "Team A",
@@ -19,7 +19,13 @@ const fallbackGames = [
     date: new Date().toISOString(),
     homeLogo: "",
     awayLogo: "",
-    value: { home: 0.5, draw: 0.3, away: 0.2, over25: 0.6, under25: 0.4 },
+    value: {
+      home: 0.5,
+      draw: 0.3,
+      away: 0.2,
+      over25: 0.6,
+      under25: 0.4
+    },
     trend: "home",
     btts: 0.7
   },
@@ -30,33 +36,36 @@ const fallbackGames = [
     date: new Date().toISOString(),
     homeLogo: "",
     awayLogo: "",
-    value: { home: 0.4, draw: 0.35, away: 0.25, over25: 0.5, under25: 0.5 },
+    value: {
+      home: 0.4,
+      draw: 0.35,
+      away: 0.25,
+      over25: 0.5,
+      under25: 0.5
+    },
     trend: "away",
     btts: 0.6
   }
 ];
 
 app.get("/api/games", async (req, res) => {
-  try {
-    const date = req.query.date || new Date().toISOString().slice(0, 10);
-    console.log("📅 Lade Spiele für", date);
+  const date = req.query.date || new Date().toISOString().slice(0, 10);
+  console.log("📅 Lade Spiele für", date);
 
+  try {
     const response = await fetch(`${API_URL}/matches/live`, {
       headers: { "x-app-key": API_KEY }
     });
 
     if (!response.ok) {
-      const text = await response.text();
-      console.error(`❌ Fehler /api/games: ${response.status} ${response.statusText}`);
-      console.error("Response (erste 200 Zeichen):", text.slice(0, 200));
-      console.warn("⚠️ Fallback-Daten werden verwendet.");
-      return res.json({ response: fallbackGames });
+      throw new Error(`API antwortet mit Status ${response.status}`);
     }
 
     const data = await response.json();
-    const matches = data?.data || [];
+    const matches = data?.response || [];
 
-    const games = matches.map((m) => ({
+    // Spiele anpassen
+    const games = matches.map(m => ({
       home: m.home_team?.name || "Unbekannt",
       away: m.away_team?.name || "Unbekannt",
       league: m.league?.name || "Unbekannte Liga",
@@ -74,11 +83,10 @@ app.get("/api/games", async (req, res) => {
       btts: m.probabilities?.btts || 0
     }));
 
-    res.json({ response: games.length > 0 ? games : fallbackGames });
+    res.json({ response: games, fallback: false });
   } catch (err) {
-    console.error("❌ Server Fehler /api/games:", err);
-    console.warn("⚠️ Fallback-Daten werden verwendet.");
-    res.json({ response: fallbackGames });
+    console.error("❌ API nicht erreichbar, Fallback-Daten werden genutzt:", err.message);
+    res.json({ response: fallbackGames, fallback: true });
   }
 });
 
