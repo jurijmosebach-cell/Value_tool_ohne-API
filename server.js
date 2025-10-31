@@ -1,49 +1,41 @@
 import express from "express";
 import fetch from "node-fetch";
 import cors from "cors";
-import path from "path";
-import { fileURLToPath } from "url";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ==== Pfadvariablen für statische Dateien ====
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// ==== Konfiguration ====
-const API_URL = "https://apiv3.sportsapi360.com/football/api/v1/";
+const API_URL = "https://apiv3.sportsapi360.com/football/api/v1/matches/live";
 const API_KEY = process.env.SPORTSAPI_KEY;
 const PORT = process.env.PORT || 10000;
 
-// ==== Health Check für Render ====
-app.get("/health", (req, res) => res.send("OK"));
-
-// ==== Spiele-API ====
+// === API Route /api/games ===
 app.get("/api/games", async (req, res) => {
   try {
     const date = req.query.date || new Date().toISOString().slice(0, 10);
     console.log("📅 Lade Spiele für", date);
 
-    const response = await fetch(`${API_URL}matches/live`, {
+    // Richtiges Header-Format für SportsAPI360 v3
+    const response = await fetch(API_URL, {
       headers: { "x-app-key": API_KEY },
     });
 
     if (!response.ok) {
       const text = await response.text();
-      console.error("❌ Fehler /api/games:", response.status, response.statusText);
+      console.error("❌ Fehler /api/games:", response.status, response.statusText, "-", text.slice(0, 200));
       return res.status(response.status).json({ error: "API Fehler", details: text });
     }
 
     const data = await response.json();
-    const matches = data?.response || []; // passt zur SportsAPI360-Datenstruktur
+    const matches = data?.data || [];
 
+    // Mapping auf dein Frontend-Format
     const games = matches.map(m => ({
       home: m.home_team?.name || "Unbekannt",
       away: m.away_team?.name || "Unbekannt",
       league: m.league?.name || "Unbekannte Liga",
-      date: m.fixture?.date || new Date(),
+      date: m.fixture?.date,
       homeLogo: m.home_team?.logo || "",
       awayLogo: m.away_team?.logo || "",
       value: {
@@ -64,12 +56,14 @@ app.get("/api/games", async (req, res) => {
   }
 });
 
-// ==== Frontend-HTML, CSS, JS servieren ====
-app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
-app.get("/app.js", (req, res) => res.sendFile(path.join(__dirname, "app.js")));
-app.get("/style.css", (req, res) => res.sendFile(path.join(__dirname, "style.css")));
+// === Frontend Route / ===
+app.get("/", (req, res) => {
+  res.send(`
+    <h1>⚽ Value Tool Backend</h1>
+    <p>Das Backend läuft. <a href="/api/games">API testen</a></p>
+  `);
+});
 
-// ==== Server starten ====
 app.listen(PORT, () => {
   console.log(`🚀 Server läuft auf Port ${PORT} (Frontend + API bereit)`);
 });
