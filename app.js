@@ -1,5 +1,3 @@
-// app.js – aktualisiert für SportsAPI360 v3
-
 // ==== HTML-Elemente holen ====
 const top3Div = document.getElementById("top3");
 const top7ValueDiv = document.getElementById("top7Value");
@@ -61,7 +59,7 @@ async function loadGames() {
       );
     }
 
-    // Sortieren nach maximalem Value
+    // Sortieren nach Value
     games.sort(
       (a, b) =>
         Math.max(b.value.home, b.value.draw, b.value.away) -
@@ -74,12 +72,15 @@ async function loadGames() {
     top3.forEach((g) => {
       const div = document.createElement("div");
       div.className = "game top3";
-      const bestVal = Math.max(g.value.home, g.value.draw, g.value.away);
-      const color = getTrafficColor(bestVal, g.trend);
+      const color = getTrafficColor(Math.max(g.value.home, g.value.draw, g.value.away), g.trend);
       div.style.borderLeft = `6px solid ${color}`;
       div.innerHTML = `
-        <div><strong>${g.home}</strong> vs <strong>${g.away}</strong> (${g.league})</div>
-        <small>${new Date(g.date).toLocaleString()}</small>
+        <img class="game-logo" src="${g.homeLogo}" alt="${g.home}" />
+        <div class="game-info">
+          <strong>${g.home}</strong> vs <strong>${g.away}</strong> (${g.league})<br/>
+          <small>${new Date(g.date).toLocaleString()}</small>
+        </div>
+        <img class="game-logo" src="${g.awayLogo}" alt="${g.away}" />
       `;
       div.appendChild(createBar("Home", g.value.home, "#16a34a"));
       div.appendChild(createBar("Draw", g.value.draw, "#f59e0b"));
@@ -97,7 +98,13 @@ async function loadGames() {
       const div = document.createElement("div");
       div.className = "game";
       div.style.borderLeft = `6px solid ${getTrafficColor(bestVal, g.trend)}`;
-      div.textContent = `${g.home} vs ${g.away} (${g.league}) → Value ${(bestVal * 100).toFixed(1)}% | Trend: ${g.trend}`;
+      div.innerHTML = `
+        <img class="game-logo" src="${g.homeLogo}" alt="${g.home}" />
+        <div class="game-info">
+          ${g.home} vs ${g.away} (${g.league}) → Value ${(bestVal * 100).toFixed(1)}% | Trend: ${g.trend}
+        </div>
+        <img class="game-logo" src="${g.awayLogo}" alt="${g.away}" />
+      `;
       top7ValueDiv.appendChild(div);
     });
 
@@ -111,7 +118,13 @@ async function loadGames() {
       const div = document.createElement("div");
       div.className = "game";
       div.style.borderLeft = "6px solid #2196f3";
-      div.textContent = `${g.home} vs ${g.away} (${g.league}) → ${(g.value.over25 * 100).toFixed(1)}% Over 2.5`;
+      div.innerHTML = `
+        <img class="game-logo" src="${g.homeLogo}" alt="${g.home}" />
+        <div class="game-info">
+          ${g.home} vs ${g.away} (${g.league}) → ${(g.value.over25 * 100).toFixed(1)}% Over 2.5
+        </div>
+        <img class="game-logo" src="${g.awayLogo}" alt="${g.away}" />
+      `;
       top5OverDiv.appendChild(div);
     });
 
@@ -120,12 +133,15 @@ async function loadGames() {
     games.forEach((g) => {
       const div = document.createElement("div");
       div.className = "game";
-      const bestVal = Math.max(g.value.home, g.value.draw, g.value.away);
-      const color = getTrafficColor(bestVal, g.trend);
+      const color = getTrafficColor(Math.max(g.value.home, g.value.draw, g.value.away), g.trend);
       div.style.borderLeft = `6px solid ${color}`;
       div.innerHTML = `
-        <div><strong>${g.home}</strong> vs <strong>${g.away}</strong> (${g.league})</div>
-        <small>${new Date(g.date).toLocaleString()}</small>
+        <img class="game-logo" src="${g.homeLogo}" alt="${g.home}" />
+        <div class="game-info">
+          <strong>${g.home}</strong> vs <strong>${g.away}</strong> (${g.league})<br/>
+          <small>${new Date(g.date).toLocaleString()}</small>
+        </div>
+        <img class="game-logo" src="${g.awayLogo}" alt="${g.away}" />
       `;
       div.appendChild(createBar("Home", g.value.home, "#16a34a"));
       div.appendChild(createBar("Draw", g.value.draw, "#f59e0b"));
@@ -135,12 +151,12 @@ async function loadGames() {
       div.appendChild(createBar("BTTS", g.btts ?? 0, "#ff7a00"));
       gamesDiv.appendChild(div);
     });
+
   } catch (err) {
     console.error("❌ Fehler beim Laden:", err);
     gamesDiv.innerHTML = `<p>❌ Fehler beim Laden der Spiele. (${err.message})</p>`;
   }
 }
 
-// ==== Events ====
 loadBtn.addEventListener("click", loadGames);
 window.addEventListener("load", loadGames);
