@@ -38,8 +38,8 @@ async function loadGames() {
     const res = await fetch(url);
     const data = await res.json();
 
-    if (!data || !Array.isArray(data.response) || data.response.length === 0) {
-      gamesDiv.innerHTML = "<p>❌ Keine Spiele gefunden.</p>";
+    if (!data || !Array.isArray(data.response)) {
+      gamesDiv.innerHTML = "<p>❌ Keine Daten erhalten.</p>";
       return;
     }
 
@@ -113,7 +113,7 @@ async function loadGames() {
       top5OverDiv.appendChild(div);
     });
 
-    // === Alle Spiele ===
+    // === Alle anderen Spiele ===
     gamesDiv.innerHTML = "<h3>📋 Alle Spiele</h3>";
     games.forEach((g) => {
       const div = document.createElement("div");
@@ -139,5 +139,6 @@ async function loadGames() {
   }
 }
 
+// ==== Events ====
 loadBtn.addEventListener("click", loadGames);
 window.addEventListener("load", loadGames);
