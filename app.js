@@ -1,3 +1,5 @@
+// app.js – aktualisiert für SportsAPI360 v3
+
 // ==== HTML-Elemente holen ====
 const top3Div = document.getElementById("top3");
 const top7ValueDiv = document.getElementById("top7Value");
@@ -59,14 +61,14 @@ async function loadGames() {
       );
     }
 
-    // Sortieren nach Value
+    // Sortieren nach maximalem Value
     games.sort(
       (a, b) =>
         Math.max(b.value.home, b.value.draw, b.value.away) -
         Math.max(a.value.home, a.value.draw, a.value.away)
     );
 
-    // === TOP 3 ===
+    // ==== TOP 3 ====
     const top3 = games.slice(0, 3);
     top3Div.innerHTML = "<h3>🏆 Top 3 Spiele</h3>";
     top3.forEach((g) => {
@@ -87,7 +89,7 @@ async function loadGames() {
       top3Div.appendChild(div);
     });
 
-    // === TOP 7 Value ===
+    // ==== TOP 7 Value ====
     const top7 = games.slice(0, 7);
     top7ValueDiv.innerHTML = "<h3>💰 Top 7 Value</h3>";
     top7.forEach((g) => {
@@ -99,7 +101,7 @@ async function loadGames() {
       top7ValueDiv.appendChild(div);
     });
 
-    // === TOP 5 Over 2.5 ===
+    // ==== TOP 5 Over 2.5 ====
     const top5Over = games
       .slice()
       .sort((a, b) => b.value.over25 - a.value.over25)
@@ -113,7 +115,7 @@ async function loadGames() {
       top5OverDiv.appendChild(div);
     });
 
-    // === Alle anderen Spiele ===
+    // ==== Alle Spiele ====
     gamesDiv.innerHTML = "<h3>📋 Alle Spiele</h3>";
     games.forEach((g) => {
       const div = document.createElement("div");
@@ -134,10 +136,11 @@ async function loadGames() {
       gamesDiv.appendChild(div);
     });
   } catch (err) {
-    console.error("Fehler beim Laden:", err);
+    console.error("❌ Fehler beim Laden:", err);
     gamesDiv.innerHTML = `<p>❌ Fehler beim Laden der Spiele. (${err.message})</p>`;
   }
 }
 
+// ==== Events ====
 loadBtn.addEventListener("click", loadGames);
 window.addEventListener("load", loadGames);
