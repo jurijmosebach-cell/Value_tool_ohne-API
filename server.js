@@ -1,27 +1,25 @@
 import express from "express";
 import fetch from "node-fetch";
 import cors from "cors";
-import path from "path";
-import { fileURLToPath } from "url";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const API_URL = "https://apiv3.sportsapi360.com/football/api/v1";
 const API_KEY = process.env.SPORTSAPI_KEY;
 const PORT = process.env.PORT || 10000;
 
-// === Spiele laden ===
+// Basis-URL der SportsAPI360
+const BASE_URL = "https://apiv3.sportsapi360.com/football/api/v1/matches";
+
 app.get("/api/games", async (req, res) => {
   try {
-    const date = req.query.date || new Date().toISOString().slice(0, 10);
-    console.log("📅 Lade Spiele für", date);
+    const date = req.query.date ? `?date=${req.query.date}` : "?status=live";
+    const url = `${BASE_URL}${date}`;
 
-    const response = await fetch(`${API_URL}/matches/live`, {
+    console.log("📅 Lade Spiele von SportsAPI360:", url);
+
+    const response = await fetch(url, {
       headers: { "x-app-key": API_KEY },
     });
 
@@ -32,13 +30,14 @@ app.get("/api/games", async (req, res) => {
     }
 
     const data = await response.json();
-    const matches = data?.response || [];
+    const matches = data?.data || [];
 
-    const games = matches.map((m) => ({
+    // Relevante Felder für das Frontend extrahieren
+    const games = matches.map(m => ({
       home: m.home_team?.name || "Unbekannt",
       away: m.away_team?.name || "Unbekannt",
       league: m.league?.name || "Unbekannte Liga",
-      date: m.fixture?.date || new Date(),
+      date: m.fixture?.date,
       homeLogo: m.home_team?.logo || "",
       awayLogo: m.away_team?.logo || "",
       value: {
@@ -59,11 +58,13 @@ app.get("/api/games", async (req, res) => {
   }
 });
 
-// === HTML, JS, CSS direkt ausliefern ===
-app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
-app.get("/app.js", (req, res) => res.sendFile(path.join(__dirname, "app.js")));
-app.get("/style.css", (req, res) => res.sendFile(path.join(__dirname, "style.css")));
+app.get("/", (req, res) => {
+  res.send(`
+    <h1>⚽ Value Tool Backend</h1>
+    <p>Das Backend läuft. <a href="/api/games">API testen</a></p>
+  `);
+});
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server läuft auf Port ${PORT} (Frontend + API bereit)`);
+  console.log(`🚀 Server läuft auf Port ${PORT} (echte SportsAPI360 Daten)`);
 });
