@@ -1,9 +1,12 @@
 {
   "name": "xg-value-tool",
   "version": "4.0.0",
-  "description": "Value Tool mit SportsAPI360 Integration",
+  "description": "XG & Value Tool mit SportsAPI360 Integration",
   "main": "server.js",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node server.js"
   },
