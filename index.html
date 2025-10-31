@@ -56,7 +56,7 @@
       border-radius: .5rem;
       padding: 1rem;
       margin-bottom: 1rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
 
     .game {
@@ -66,6 +66,24 @@
       margin: .5rem 0;
       border-left: 6px solid #e5e7eb;
       box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      flex-wrap: wrap;
+    }
+
+    .game-logo {
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+      border-radius: 50%;
+      background: #fff;
+      border: 1px solid #ccc;
+    }
+
+    .game-info {
+      flex: 1;
+      min-width: 200px;
     }
 
     .bar-container {
