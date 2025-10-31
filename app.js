@@ -59,6 +59,14 @@ async function loadGames() {
       );
     }
 
+    if (!games.length) {
+      gamesDiv.innerHTML = "<p>⚠️ Keine Spiele gefunden.</p>";
+      top3Div.innerHTML = "";
+      top7ValueDiv.innerHTML = "";
+      top5OverDiv.innerHTML = "";
+      return;
+    }
+
     // Sortieren nach Value
     games.sort(
       (a, b) =>
@@ -66,21 +74,18 @@ async function loadGames() {
         Math.max(a.value.home, a.value.draw, a.value.away)
     );
 
-    // ==== TOP 3 ====
+    // === TOP 3 ===
     const top3 = games.slice(0, 3);
     top3Div.innerHTML = "<h3>🏆 Top 3 Spiele</h3>";
     top3.forEach((g) => {
       const div = document.createElement("div");
       div.className = "game top3";
-      const color = getTrafficColor(Math.max(g.value.home, g.value.draw, g.value.away), g.trend);
+      const bestVal = Math.max(g.value.home, g.value.draw, g.value.away);
+      const color = getTrafficColor(bestVal, g.trend);
       div.style.borderLeft = `6px solid ${color}`;
       div.innerHTML = `
-        <img class="game-logo" src="${g.homeLogo}" alt="${g.home}" />
-        <div class="game-info">
-          <strong>${g.home}</strong> vs <strong>${g.away}</strong> (${g.league})<br/>
-          <small>${new Date(g.date).toLocaleString()}</small>
-        </div>
-        <img class="game-logo" src="${g.awayLogo}" alt="${g.away}" />
+        <div><strong>${g.home}</strong> vs <strong>${g.away}</strong> (${g.league})</div>
+        <small>${new Date(g.date).toLocaleString()}</small>
       `;
       div.appendChild(createBar("Home", g.value.home, "#16a34a"));
       div.appendChild(createBar("Draw", g.value.draw, "#f59e0b"));
@@ -90,7 +95,7 @@ async function loadGames() {
       top3Div.appendChild(div);
     });
 
-    // ==== TOP 7 Value ====
+    // === TOP 7 Value ===
     const top7 = games.slice(0, 7);
     top7ValueDiv.innerHTML = "<h3>💰 Top 7 Value</h3>";
     top7.forEach((g) => {
@@ -98,17 +103,11 @@ async function loadGames() {
       const div = document.createElement("div");
       div.className = "game";
       div.style.borderLeft = `6px solid ${getTrafficColor(bestVal, g.trend)}`;
-      div.innerHTML = `
-        <img class="game-logo" src="${g.homeLogo}" alt="${g.home}" />
-        <div class="game-info">
-          ${g.home} vs ${g.away} (${g.league}) → Value ${(bestVal * 100).toFixed(1)}% | Trend: ${g.trend}
-        </div>
-        <img class="game-logo" src="${g.awayLogo}" alt="${g.away}" />
-      `;
+      div.textContent = `${g.home} vs ${g.away} (${g.league}) → Value ${(bestVal * 100).toFixed(1)}% | Trend: ${g.trend}`;
       top7ValueDiv.appendChild(div);
     });
 
-    // ==== TOP 5 Over 2.5 ====
+    // === TOP 5 Over 2.5 ===
     const top5Over = games
       .slice()
       .sort((a, b) => b.value.over25 - a.value.over25)
@@ -118,30 +117,21 @@ async function loadGames() {
       const div = document.createElement("div");
       div.className = "game";
       div.style.borderLeft = "6px solid #2196f3";
-      div.innerHTML = `
-        <img class="game-logo" src="${g.homeLogo}" alt="${g.home}" />
-        <div class="game-info">
-          ${g.home} vs ${g.away} (${g.league}) → ${(g.value.over25 * 100).toFixed(1)}% Over 2.5
-        </div>
-        <img class="game-logo" src="${g.awayLogo}" alt="${g.away}" />
-      `;
+      div.textContent = `${g.home} vs ${g.away} (${g.league}) → ${(g.value.over25 * 100).toFixed(1)}% Over 2.5`;
       top5OverDiv.appendChild(div);
     });
 
-    // ==== Alle Spiele ====
+    // === Alle anderen Spiele ===
     gamesDiv.innerHTML = "<h3>📋 Alle Spiele</h3>";
     games.forEach((g) => {
       const div = document.createElement("div");
       div.className = "game";
-      const color = getTrafficColor(Math.max(g.value.home, g.value.draw, g.value.away), g.trend);
+      const bestVal = Math.max(g.value.home, g.value.draw, g.value.away);
+      const color = getTrafficColor(bestVal, g.trend);
       div.style.borderLeft = `6px solid ${color}`;
       div.innerHTML = `
-        <img class="game-logo" src="${g.homeLogo}" alt="${g.home}" />
-        <div class="game-info">
-          <strong>${g.home}</strong> vs <strong>${g.away}</strong> (${g.league})<br/>
-          <small>${new Date(g.date).toLocaleString()}</small>
-        </div>
-        <img class="game-logo" src="${g.awayLogo}" alt="${g.away}" />
+        <div><strong>${g.home}</strong> vs <strong>${g.away}</strong> (${g.league})</div>
+        <small>${new Date(g.date).toLocaleString()}</small>
       `;
       div.appendChild(createBar("Home", g.value.home, "#16a34a"));
       div.appendChild(createBar("Draw", g.value.draw, "#f59e0b"));
@@ -151,12 +141,12 @@ async function loadGames() {
       div.appendChild(createBar("BTTS", g.btts ?? 0, "#ff7a00"));
       gamesDiv.appendChild(div);
     });
-
   } catch (err) {
-    console.error("❌ Fehler beim Laden:", err);
+    console.error("Fehler beim Laden:", err);
     gamesDiv.innerHTML = `<p>❌ Fehler beim Laden der Spiele. (${err.message})</p>`;
   }
 }
 
+// Event-Listener
 loadBtn.addEventListener("click", loadGames);
 window.addEventListener("load", loadGames);
