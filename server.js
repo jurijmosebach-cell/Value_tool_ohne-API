@@ -6,18 +6,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const API_URL = "https://apiv3.sportsapi360.com/football/api/v1/matches/live";
-const API_KEY = process.env.SPORTSAPI_KEY;
+const API_URL = "https://apiv3.sportsapi360.com/football/api/v1";
+const API_KEY = process.env.SPORTSAPI_KEY; // Dein API-Key
 const PORT = process.env.PORT || 10000;
 
-// === API Route /api/games ===
+// === Spiele laden ===
 app.get("/api/games", async (req, res) => {
   try {
     const date = req.query.date || new Date().toISOString().slice(0, 10);
     console.log("📅 Lade Spiele für", date);
 
-    // Richtiges Header-Format für SportsAPI360 v3
-    const response = await fetch(API_URL, {
+    const response = await fetch(`${API_URL}/matches?date=${date}`, {
       headers: { "x-app-key": API_KEY },
     });
 
@@ -30,14 +29,14 @@ app.get("/api/games", async (req, res) => {
     const data = await response.json();
     const matches = data?.data || [];
 
-    // Mapping auf dein Frontend-Format
+    // Relevante Felder extrahieren
     const games = matches.map(m => ({
       home: m.home_team?.name || "Unbekannt",
       away: m.away_team?.name || "Unbekannt",
       league: m.league?.name || "Unbekannte Liga",
       date: m.fixture?.date,
-      homeLogo: m.home_team?.logo || "",
-      awayLogo: m.away_team?.logo || "",
+      homeLogo: m.home_team?.logo,
+      awayLogo: m.away_team?.logo,
       value: {
         home: m.probabilities?.home_win || 0,
         draw: m.probabilities?.draw || 0,
@@ -50,13 +49,13 @@ app.get("/api/games", async (req, res) => {
     }));
 
     res.json({ response: games });
+
   } catch (err) {
     console.error("❌ Server Fehler /api/games:", err);
     res.status(500).json({ error: "Serverfehler", details: err.message });
   }
 });
 
-// === Frontend Route / ===
 app.get("/", (req, res) => {
   res.send(`
     <h1>⚽ Value Tool Backend</h1>
