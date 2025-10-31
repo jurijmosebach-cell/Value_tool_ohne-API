@@ -139,6 +139,5 @@ async function loadGames() {
   }
 }
 
-// ==== Events ====
 loadBtn.addEventListener("click", loadGames);
 window.addEventListener("load", loadGames);
